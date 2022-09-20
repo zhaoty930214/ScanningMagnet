@@ -1,0 +1,138 @@
+/**
+ ****************************************************************************************************
+ * @file        adc.c
+ * @author      正点原子团队(ALIENTEK)
+ * @version     V1.0
+ * @date        2021-10-18
+ * @brief       ADC 驱动代码
+ * @license     Copyright (c) 2020-2032, 广州市星翼电子科技有限公司
+ ****************************************************************************************************
+ * @attention
+ *
+ * 实验平台:正点原子 F407电机开发板
+ * 在线视频:www.yuanzige.com
+ * 技术论坛:www.openedv.com/forum.php
+ * 公司网址:www.alientek.com
+ * 购买地址:openedv.taobao.com
+ *
+ * 修改说明
+ * V1.0 20211018
+ * 第一次发布
+ *
+ ****************************************************************************************************
+ */
+
+#include "adc.h"
+#include "delay.h"
+
+
+DMA_HandleTypeDef g_dma_adc_handle = {0};                                   /* 定义要搬运ADC数据的DMA句柄 */
+ADC_HandleTypeDef g_adc_dma_handle = {0};                                   /* 定义ADC（DMA读取）句柄 */
+uint8_t g_adc_dma_sta = 0;                                                  /* DMA传输状态标志, 0,未完成; 1, 已完成 */
+
+/**
+ * @brief       ADC DMA读取 初始化函数
+ * @param       mar         : 存储器地址
+ * @retval      无
+ */
+void adc_dma_init(uint32_t mar)
+{
+    GPIO_InitTypeDef gpio_init_struct;
+    ADC_ChannelConfTypeDef adc_ch_conf = {0};
+
+    ADC_ADCX_CHY_CLK_ENABLE();                                              /* 使能ADCx时钟 */
+    ADC_ADCX_CHY_GPIO_CLK_ENABLE();                                         /* 开启GPIO时钟 */
+
+    if ((uint32_t)ADC_ADCX_DMASx > (uint32_t)DMA2)                          /* 大于DMA2的基地址, 则为DMA2的数据流通道了 */
+    {
+        __HAL_RCC_DMA2_CLK_ENABLE();                                        /* DMA2时钟使能 */
+    }
+    else
+    {
+        __HAL_RCC_DMA1_CLK_ENABLE();                                        /* DMA1时钟使能 */
+    }
+
+    /* 设置AD采集通道对应IO引脚工作模式 */
+    gpio_init_struct.Pin = ADC_ADCX_CHY_GPIO_PIN;
+    gpio_init_struct.Mode = GPIO_MODE_ANALOG;
+    gpio_init_struct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(ADC_ADCX_CHY_GPIO_PORT, &gpio_init_struct);
+
+    /* 初始化DMA */
+    g_dma_adc_handle.Instance = ADC_ADCX_DMASx;                             /* 设置DMA数据流 */
+    g_dma_adc_handle.Init.Channel = DMA_CHANNEL_0;                          /* 设置DMA通道 */
+    g_dma_adc_handle.Init.Direction = DMA_PERIPH_TO_MEMORY;                 /* 从外设到存储器模式 */
+    g_dma_adc_handle.Init.PeriphInc = DMA_PINC_DISABLE;                     /* 外设非增量模式 */
+    g_dma_adc_handle.Init.MemInc = DMA_MINC_ENABLE;                         /* 存储器增量模式 */
+    g_dma_adc_handle.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;    /* 外设数据长度:16位 */
+    g_dma_adc_handle.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;       /* 存储器数据长度:16位 */
+    g_dma_adc_handle.Init.Mode = DMA_NORMAL;                                /* 外设流控模式 */
+    g_dma_adc_handle.Init.Priority = DMA_PRIORITY_MEDIUM;                   /* 中等优先级 */
+    HAL_DMA_Init(&g_dma_adc_handle);
+
+    g_adc_dma_handle.Instance = ADC_ADCX;
+    g_adc_dma_handle.Init.ClockPrescaler = ADC_CLOCKPRESCALER_PCLK_DIV4;    /* 4分频，21Mhz */
+    g_adc_dma_handle.Init.Resolution = ADC_RESOLUTION_12B;                  /* 12位模式 */
+    g_adc_dma_handle.Init.DataAlign = ADC_DATAALIGN_RIGHT;                  /* 右对齐 */
+    g_adc_dma_handle.Init.ScanConvMode = DISABLE;                           /* 非扫描模式 */
+    g_adc_dma_handle.Init.ContinuousConvMode = ENABLE;                      /* 开启连续转换 */
+    g_adc_dma_handle.Init.NbrOfConversion = 1;                              /* 本实验用到1个规则通道序列 */
+    g_adc_dma_handle.Init.DiscontinuousConvMode = DISABLE;                  /* 禁止不连续采样模式 */
+    g_adc_dma_handle.Init.NbrOfDiscConversion = 0;                          /* 不连续采样通道数为0 */
+    g_adc_dma_handle.Init.ExternalTrigConv = ADC_SOFTWARE_START;            /* 软件触发 */
+    g_adc_dma_handle.Init.DMAContinuousRequests = ENABLE;                   /* 开启DMA请求 */
+    HAL_ADC_Init(&g_adc_dma_handle);                                        /* 初始化ADC */
+
+    __HAL_LINKDMA(&g_adc_dma_handle, DMA_Handle, g_dma_adc_handle);         /* 把ADC和DMA连接起来 */
+
+    /* 配置ADC通道 */
+    adc_ch_conf.Channel = ADC_ADCX_CHY;                                     /* 通道 */
+    adc_ch_conf.Rank = 1;                                                   /* 序列 */
+    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
+    HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */
+
+    /* 配置DMA数据流请求中断优先级 */
+    HAL_NVIC_SetPriority(ADC_ADCX_DMASx_IRQn, 3, 3);
+    HAL_NVIC_EnableIRQ(ADC_ADCX_DMASx_IRQn);
+
+    HAL_DMA_Start_IT(&g_dma_adc_handle, (uint32_t)&ADC1->DR, mar, 0);       /* 启动DMA，并开启中断 */
+    HAL_ADC_Start_DMA(&g_adc_dma_handle,&mar,0);                            /* 开启ADC，通过DMA传输结果 */
+}
+
+/**
+ * @brief       使能一次ADC DMA传输
+ * @param       cndtr: DMA传输的次数
+ * @retval      无
+ */
+void adc_dma_enable(uint16_t cndtr)
+{
+    __HAL_ADC_DISABLE(&g_adc_dma_handle);           /* 先关闭ADC */
+
+    __HAL_DMA_DISABLE(&g_dma_adc_handle);           /* 关闭DMA传输 */
+    g_dma_adc_handle.Instance->NDTR = cndtr;        /* 重设DMA传输数据量 */
+    __HAL_DMA_ENABLE(&g_dma_adc_handle);            /* 开启DMA传输 */
+
+    __HAL_ADC_ENABLE(&g_adc_dma_handle);            /* 重新启动ADC */
+    ADC_ADCX->CR2 |= 1 << 30;                       /* 启动规则转换通道 */
+}
+
+/**
+ * @brief       ADC DMA采集中断服务函数
+ * @param       无
+ * @retval      无
+ */
+void ADC_ADCX_DMASx_IRQHandler(void)
+{
+    if (ADC_ADCX_DMASx_IS_TC())
+    {
+        g_adc_dma_sta = 1;                          /* 标记DMA传输完成 */
+        ADC_ADCX_DMASx_CLR_TC();                    /* 清除DMA2 数据流4 传输完成中断 */
+    }
+}
+
+
+
+
+
+
+

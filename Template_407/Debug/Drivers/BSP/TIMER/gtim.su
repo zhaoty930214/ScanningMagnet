@@ -1,0 +1,6 @@
+../Drivers/BSP/TIMER/gtim.c:68:6:gtim_timx_int_init	24	static
+../Drivers/BSP/TIMER/gtim.c:90:6:TIM3_IRQHandler	8	static
+../Drivers/BSP/TIMER/gtim.c:108:6:gtim_timx_encoder_chy_init	16	static
+../Drivers/BSP/TIMER/gtim.c:140:6:HAL_TIM_Encoder_MspInit	56	static
+../Drivers/BSP/TIMER/gtim.c:176:5:gtim_get_encode	4	static
+../Drivers/BSP/TIMER/gtim.c:192:6:HAL_TIM_PeriodElapsedCallback	16	static

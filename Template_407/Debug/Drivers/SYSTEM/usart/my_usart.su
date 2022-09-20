@@ -1,0 +1,5 @@
+../Drivers/SYSTEM/usart/my_usart.c:48:1:__io_putchar	16	static
+../Drivers/SYSTEM/usart/my_usart.c:80:6:usart_init	16	static
+../Drivers/SYSTEM/usart/my_usart.c:103:6:HAL_UART_MspInit	48	static
+../Drivers/SYSTEM/usart/my_usart.c:143:6:HAL_UART_RxCpltCallback	24	static,ignoring_inline_asm
+../Drivers/SYSTEM/usart/my_usart.c:179:6:USART1_IRQHandler	24	static

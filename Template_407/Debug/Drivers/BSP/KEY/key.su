@@ -1,0 +1,2 @@
+../Drivers/BSP/KEY/key.c:34:6:key_init	40	static
+../Drivers/BSP/KEY/key.c:74:9:key_scan	24	static
