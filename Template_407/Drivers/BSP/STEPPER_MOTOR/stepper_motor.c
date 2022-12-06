@@ -28,8 +28,10 @@
 #include "gtim.h"
 #include "main.h"
 #include "my_tasks.h"
+#include "portmacro.h"
 #include <stdio.h>
 #include <stdbool.h>
+
 /**
  * @brief       ³õÊ¼»¯²½½øµç»úÏà¹ØIO¿Ú, ²¢Ê¹ÄÜÊ±ÖÓ
  * @param       arr: ×Ô¶¯ÖØ×°Öµ
@@ -218,19 +220,29 @@ void stepper_motion_ctrl(uint8_t dir, uint16_t location_m)      /* location_mÈç¹
     float step_delay = 0.0;                                     /* ²½½øÑÓÊ± */
     static int debug_out = 0;
     int queue_item;
+    BaseType_t xHigherPriorityTaskWoken;
+    xHigherPriorityTaskWoken = pdFALSE;
     if(location_m == 0)
     {
         HAL_TIM_OC_Stop_IT(&g_atimx_handle, ATIM_TIMX_PWM_CH1);  /* µ±ÆÚÍûÖµÓëÄ¿±êÖµÒ»ÖÂÊ±£¬´ú±íÒÑµ½Ö¸¶¨Î»ÖÃ£¬Í£Ö¹Êä³ö */
 
         g_step_angle = 0;                                        /* Çå¿ÕÊı¾İ */
-        if(debug_out == 0)
+        if(debug_out == 0 && g_step_motor.setPoint_flag == true)
         {
         	debug_out = 1;
             //printf("Motor has rotated to special location!\r\n");
             //printf("Current encoder value is %d\r\n", gtim_get_encode());
             //´ÓÖĞ¶ÏÖĞÏò¶ÓÁĞ·¢ËÍÏûÏ¢,ĞèÒªÇø·Ö3¸öÖáµÄ±Õ»·¿ØÖÆID£¬ÕâÀïÔİÊ±Ğ´¹Ì¶¨0x11
             queue_item = 0x11;
-            xQueueSendFromISR(Queue_MotorReady, &queue_item, false);
+            g_step_motor.setPoint_flag = false;
+            xQueueSendFromISR(Queue_MotorReady, &queue_item, &xHigherPriorityTaskWoken);
+
+            /*·¢ËÍ¶ÓÁĞºóÈç¹ûÊ¹Ä³¸öÈÎÎñ½Ó´¥×èÈû£¬ÔòÁ¢¼´½øĞĞÈÎÎñÇĞ»»*/
+        	if( xHigherPriorityTaskWoken )
+        	{
+        		// Actual macro used here is port specific.
+        		portYIELD_FROM_ISR(pdTRUE);
+        	}
         }
     }
     else

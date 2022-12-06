@@ -1,14 +1,15 @@
 #include "uart_commu.h"
 #include "my_usart.h"
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "usart_types.h"
 #include "LED.h"
 #include "freertos.h"
 #include "task.h"
 #include "Measure_Types.h"
 #include "my_tasks.h"
+#include "rtc.h"
 /*************************************** 第一部分 CRC校验 ********************************************/
 
 /* CRC 高位字节值表 */
@@ -140,19 +141,114 @@ void debug_receive_data(uint8_t *data)
 
 }
 
-float bytes2float(__IO uint8_t *pdata1, __IO uint8_t *pdata2, __IO uint8_t *pdata3, __IO uint8_t *pdata4)
+float bytes2float(__IO uint8_t *pdata1)
 {
 	float ret = 0;
 	uint32_t int1 = 0;
-	int1 = *pdata1  	|
-		   *pdata2 << 8 |
-		   *pdata3 << 16|
-		   *pdata4 << 24;
+	int1 = *pdata1  		|
+		   *(pdata1+1) << 8 |
+		   *(pdata1+2) << 16|
+		   *(pdata1+3) << 24;
 
 	ret = *(float*) (&int1);
 
 	return ret;
 }
+
+
+
+
+
+extern const Uart_Struct_t g_uart_handle_struct[5];
+
+
+
+
+/*debug_handle函数向这里传入顶层通用结构体指针，
+ *串口传输过来的数据是小端格式，需要转成大端格式再处理。
+ *发送配置命令使用的解析回调函数
+ */
+void config_parse_handler(void *arg, uint8_t index)
+{
+	uint8_t *pdata = arg;
+	MeasuringConfig_t *pconfig_t = (MeasuringConfig_t*) g_uart_handle_struct[index].pstorage;
+
+	pconfig_t->step_x = bytes2float(pdata);
+	pconfig_t->step_y = bytes2float(pdata+4);
+	pconfig_t->step_z = bytes2float(pdata+8);
+	pconfig_t->amplifier_current = bytes2float(pdata+12);
+
+	printf("%s, %d\r\n", __FILE__, __LINE__);
+	printf("config_parse_handler: %f, %f, %f, %f\r\n",
+			pconfig_t->step_x,
+			pconfig_t->step_y,
+			pconfig_t->step_z,
+			pconfig_t->amplifier_current);
+}
+
+
+/*debug_handle函数向这里传入顶层通用结构体指针，
+ *串口传输过来的数据是小端格式，需要转成大端格式再处理。
+ *发送调试命令使用的解析回调函数
+ */
+void debug_parse_handler(void *arg, uint8_t index)
+{
+	uint8_t *pdata = arg;
+	DebugConfig_t *pdebug_t = (DebugConfig_t*) g_uart_handle_struct[index].pstorage;
+
+	pdebug_t->axis_id = *pdata;
+	pdebug_t->direction = *(pdata+1);
+	pdebug_t->distance = bytes2float(pdata+2);
+
+	printf("%s, %d\r\n", __FILE__, __LINE__);
+	printf("debug_parse_handler: Axis id:%c, direction:%s, distance:%2.2f \r\n",
+			pdebug_t->axis_id == 0x04?'X':(pdebug_t->axis_id == 0x05?'Y':'Z'),
+			pdebug_t->direction == 0x01? "Left":"Right",
+			pdebug_t->distance);
+
+}
+
+
+/**
+ * debug_handle函数向这里传入顶层通用结构体指针
+ */
+void time_parse_handler(void *arg, uint8_t index)
+{
+	uint8_t *pdata = arg;
+	TimeConfig_t *ptime_t = (TimeConfig_t*) g_uart_handle_struct[index].pstorage;
+
+	ptime_t->year	= (*pdata) | *(pdata+1)<<8;
+	ptime_t->month	= *(pdata+2);
+	ptime_t->day	= *(pdata+3);
+	ptime_t->hour   = *(pdata+4);
+	ptime_t->minute = *(pdata+5);
+	ptime_t->second = *(pdata+6);
+
+	printf("Got time %04d-%02d-%02d, %02d:%02d:%02d \r\n",
+			ptime_t->year,
+			ptime_t->month,
+			ptime_t->day,
+			ptime_t->hour,
+			ptime_t->minute,
+			ptime_t->second );
+
+	rtc_set_date(ptime_t->year-2000, ptime_t->month, ptime_t->day, 1);
+	rtc_set_time(ptime_t->hour, ptime_t->minute, ptime_t->second, RTC_HOURFORMAT12_PM);
+
+	uint8_t year, month, date, week;
+    rtc_get_date(&year, &month, &date, &week);
+    printf("Date:20%02d-%02d-%02d\r\n", year, month, date);
+
+	volatile uint8_t hour, min, sec, ampm;
+	rtc_get_time(&hour, &min, &sec, &ampm);
+	printf("Time:%02d:%02d:%02d\r\n", hour, min, sec);
+}
+
+
+//void
+
+
+
 
 /**
  * @brief       上位机数据解析
@@ -163,6 +259,7 @@ float bytes2float(__IO uint8_t *pdata1, __IO uint8_t *pdata2, __IO uint8_t *pdat
 bool debug_handle(uint8_t *data, MeasureConfig_t *pConfig)
 {
 	bool ret_val = false;
+	uint8_t *pdata;
 	static uint8_t size_rev_max_len = sizeof(SendConfig);
     //uint8_t i;
 
@@ -172,112 +269,67 @@ bool debug_handle(uint8_t *data, MeasureConfig_t *pConfig)
     }
 
     debug_rev_data[debug_rev_p] = *(data);         /* 取出数据，存进数组 */
+    __IO uint8_t pShift_debug = debug_rev_p + DEBUG_REV_MAX_LEN;	/*最后一个数据的索引号*/
 
     if(IS_A_PACK_FOOT(*data))
     {
     	//根据协议内容，从最短包长开始遍历
     	/*总包长为7, 则只包含一个通道号*/
-    	if(IS_PACK_LENGTH_7(debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 6)%
-										   DEBUG_REV_MAX_LEN]) )
+
+    	for(int i=0; i<10; i++)
     	{
-    		//包尾-6的数据如果是包头，则确定整包长为7字节
-//    		printf("Pack head   is 0x%02x\r\n", debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 6)%
-//													   DEBUG_REV_MAX_LEN]);
-//
-//    		printf("Pack length is 0x%02x\r\n", debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 5)%
-//											DEBUG_REV_MAX_LEN]<<8 |
-//    										debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 4)%
-//											DEBUG_REV_MAX_LEN]);
-//
-//    		printf("Pack channel is 0x%02x\r\n", debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 3)%
-//															   DEBUG_REV_MAX_LEN]);
-//
-//    		printf("Pack crc is 0x%02x\r\n", debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 2)%
-//										 DEBUG_REV_MAX_LEN]<<8 |
-//										 debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 1)%
-//										 DEBUG_REV_MAX_LEN]);
-//
-//    		printf("Pack foot is 0x%02x\r\n", debug_rev_data[debug_rev_p]);
+    		uint8_t pack_head_index = pShift_debug - g_uart_handle_struct[i].pack_length+1;
+        	if(IS_A_PACK_HEAD(debug_rev_data[pack_head_index%DEBUG_REV_MAX_LEN]) )
+        	{
+        		ret_val = true;
+        		printf("channel id is %d\r\n", debug_rev_data[(pack_head_index+3)%DEBUG_REV_MAX_LEN]);
+        		pConfig->cmd_channel = 0xa0 + debug_rev_data[(pack_head_index+3)%DEBUG_REV_MAX_LEN];
 
-    		ret_val = true;
-    		printf("channel id is %d\r\n", debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 3)%
-													 DEBUG_REV_MAX_LEN]);
+        		/*判断环形接收缓冲中，包头至包尾是否顺序排列*/
+        		uint8_t index_start, index_end;
 
-    		/*
-    		 *  ReadConfig	= 0xa0+1
-    		 *  StartTest	= 0xa0+2
-    		 *  StropTest	= 0xa0+3
-    		 */
-    		pConfig->cmd_channel = 0xa0 + debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 3)%
-														 DEBUG_REV_MAX_LEN];		//ReadConfig, StartTest, StopTest
+        		index_start = pack_head_index%DEBUG_REV_MAX_LEN;
+        		index_end   = debug_rev_p;
+        		//如果起始索引号大于结尾索引号，则说明环形缓冲出现嵌套情况
+        		//这时需要把数据按照从头到尾的顺序，保存到变量中，供指针解析调用。
+        		if(index_start > index_end)
+        		{
+        			uint8_t size_front, size_behind;
+        			size_front  = DEBUG_REV_MAX_LEN - index_start;
+        			size_behind = debug_rev_p+1;
 
-    	}
-    	/*包长为23，则为发送配置通道*/
-    	else if(IS_PACK_LENGTH_7(debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 22)%
-												   DEBUG_REV_MAX_LEN]) )
-    	{
-    		int index_data = (debug_rev_p + DEBUG_REV_MAX_LEN - 22)%DEBUG_REV_MAX_LEN;
-    		index_data = (index_data + 4)%DEBUG_REV_MAX_LEN;
+        			printf("start index %d\r\n", index_start);
+        			printf("end index %d\r\n", index_end);
 
-    		pConfig->step_x = bytes2float(&debug_rev_data[index_data],
-    									  &debug_rev_data[(index_data+1)%DEBUG_REV_MAX_LEN],
-										  &debug_rev_data[(index_data+2)%DEBUG_REV_MAX_LEN],
-										  &debug_rev_data[(index_data+3)%DEBUG_REV_MAX_LEN]);
+        			memcpy(&pConfig->recv_data[0], &debug_rev_data[index_start], size_front);
+        			memcpy(&pConfig->recv_data[size_front], &debug_rev_data[0], size_behind);
+        			memset(&debug_rev_data[0], 0, DEBUG_REV_MAX_LEN);
+        			//gUartHandler[i].pstorage = &pConfig->recv_data[0];
 
-    		pConfig->step_y = bytes2float(&debug_rev_data[(index_data+4)%DEBUG_REV_MAX_LEN],
-    									  &debug_rev_data[(index_data+5)%DEBUG_REV_MAX_LEN],
-										  &debug_rev_data[(index_data+6)%DEBUG_REV_MAX_LEN],
-										  &debug_rev_data[(index_data+7)%DEBUG_REV_MAX_LEN]);
 
-    		pConfig->step_z = bytes2float(&debug_rev_data[(index_data+8)%DEBUG_REV_MAX_LEN],
-										  &debug_rev_data[(index_data+9)%DEBUG_REV_MAX_LEN],
-										  &debug_rev_data[(index_data+10)%DEBUG_REV_MAX_LEN],
-										  &debug_rev_data[(index_data+11)%DEBUG_REV_MAX_LEN]);
+        			for(int j=0; j<(size_front+size_behind); j++)
+        			{
+        				printf("DEBUG %d dest data is 0x%x . oridata is 0x%x\r\n",
+        						j, pConfig->recv_data[j], debug_rev_data[j]);
+        			}
+        		}
+        		else
+        		{
+        			memcpy(&pConfig->recv_data[0], &debug_rev_data[pack_head_index%DEBUG_REV_MAX_LEN], g_uart_handle_struct[i].pack_length);
+        			memset(&debug_rev_data[0], 0, DEBUG_REV_MAX_LEN);
 
-    		pConfig->amplifier_current = bytes2float(&debug_rev_data[(index_data+12)%DEBUG_REV_MAX_LEN],
-    												 &debug_rev_data[(index_data+13)%DEBUG_REV_MAX_LEN],
-													 &debug_rev_data[(index_data+14)%DEBUG_REV_MAX_LEN],
-													 &debug_rev_data[(index_data+15)%DEBUG_REV_MAX_LEN]);
+        			//没有嵌套，则直接指向串口缓存
+        			//gUartHandler[i].pstorage = &debug_rev_data[(pShift_debug - gUartHandler[i].pack_size+1+4)%DEBUG_REV_MAX_LEN];
 
-//    		printf("Got Pack sendconfig | ptr is %d\r\n", debug_rev_p);
-//    		printf("step_x\t step_y\t step_z\t amplifier_current\r\n");
-//
-//    		printf("%2.2f\t %2.2f\t %2.2f\t %2.2f\t \r\n",	\
-//    				pConfig->step_x,
-//					pConfig->step_y,
-//					pConfig->step_z,
-//					pConfig->amplifier_current);
+        		}
 
-    		ret_val = true;
-    		pConfig->cmd_channel = 0xa0;//SendConfig`
-    	}
-    	/*DEBUGX, Y, Z使用13字节包长*/
-    	else if(IS_PACK_LENGTH_7(debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 12)%
-												   DEBUG_REV_MAX_LEN]) )
-    	{
-    		/*本通道中，方向参数的偏移地址为5*/
-    		pConfig->dir_x	= debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 7)%
-											   DEBUG_REV_MAX_LEN];
-
-		    pConfig->step_x	= bytes2float(&debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN-6)%
-														   DEBUG_REV_MAX_LEN],
-		    		&debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN-5)%DEBUG_REV_MAX_LEN],
-					&debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN-4)%DEBUG_REV_MAX_LEN],
-					&debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN-3)%DEBUG_REV_MAX_LEN]);
-
-		    pConfig->cmd_channel = 0xa4;		//DebugX, Y, Z
-
-		    ret_val = true;
-    	}
-    	else
-    	{
-    		printf("Pack length is not 7 but 0x%x\r\n", debug_rev_data[(debug_rev_p + DEBUG_REV_MAX_LEN - 22)%
-											  DEBUG_REV_MAX_LEN]);
-    		for(int i=0; i<23; i++)
-    		{
-    			printf("%d %x\r\n", i, debug_rev_data[i]);
-    		}
-    		ret_val = false;
+        		if(g_uart_handle_struct[i].data_handler != NULL)
+        		{
+        			pdata = &pConfig->recv_data[0+4];
+        			g_uart_handle_struct[i].data_handler(pdata, i);
+        		}
+        		break;
+        	}
     	}
     }
     else

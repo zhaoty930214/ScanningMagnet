@@ -1,4 +1,4 @@
-../Drivers/BSP/STEPPER_MOTOR/stepper_motor.c:39:6:stepper_init	72	static
-../Drivers/BSP/STEPPER_MOTOR/stepper_motor.c:92:6:stepper_star	16	static
-../Drivers/BSP/STEPPER_MOTOR/stepper_motor.c:147:6:stepper_stop	16	static
-../Drivers/BSP/STEPPER_MOTOR/stepper_motor.c:216:6:stepper_motion_ctrl	24	static
+../Drivers/BSP/STEPPER_MOTOR/stepper_motor.c:41:6:stepper_init	72	static
+../Drivers/BSP/STEPPER_MOTOR/stepper_motor.c:94:6:stepper_star	16	static
+../Drivers/BSP/STEPPER_MOTOR/stepper_motor.c:149:6:stepper_stop	16	static
+../Drivers/BSP/STEPPER_MOTOR/stepper_motor.c:218:6:stepper_motion_ctrl	32	static,ignoring_inline_asm

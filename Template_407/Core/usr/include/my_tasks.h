@@ -7,12 +7,12 @@
 
 #ifndef INC_MY_TASKS_H_
 #define INC_MY_TASKS_H_
+
 #include "FreeRTOS.h"
 #include "task.h"		//使用任务支持
 #include "queue.h"		//使用消息队列支持
+#include "SGLog.h"
 #include "Measure_Types.h"
-
-
 
 
 
@@ -35,9 +35,14 @@
 #define Usart_Task_Stack	512
 #define Usart_Task_Prio		6
 
-#define Measure_TASK_NAME		"tMeasure"
+#define Measure_TASK_NAME	"tMeasure"
 #define Measure_Task_Stack	512
 #define Measure_Task_Prio	5
+
+
+#define USB_TASK_NAME		"tUSBProc"
+#define USB_Proc_Task_Stack	512
+#define USB_Proc_Task_Prio	5
 
 extern MeasureConfig_t g_measureCfg;
 extern xQueueHandle	Queue_MotorReady;

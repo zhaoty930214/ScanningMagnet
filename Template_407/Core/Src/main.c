@@ -37,6 +37,10 @@
 #include "pid.h"
 #include "adc.h"
 #include <stdio.h>
+#include "exfuns.h"
+#include "photoelectric_switch.h"
+#include "usbh_conf.h"
+#include "rtc.h"
 
 void MX_FREERTOS_Init(void);
 
@@ -54,46 +58,61 @@ TaskHandle_t Start_Handle_t;
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-  /* USER CODE END 1 */
+	/* USER CODE BEGIN 1 */
+	/* USER CODE END 1 */
+	uint8_t hour, min, sec, ampm;
 
-  HAL_Init();
-  //MX_GPIO_Init();
-  sys_stm32_clock_init(336, 8, 2, 7);
-  delay_init(168);
-  led_init();
-  key_init();                              /* 初始化按键 */
-  usart_init(115200);
-  //rs232_init(9600);                       /* 初始化RS232 */
-
-  debug_init();
-  stepper_init(0xFFFF-1, 84 - 1);      		/*初始化步进电机驱动和TIM8		   */
-  gtim_timx_encoder_chy_init(0xffff, 0);	/*初始化TIM3(编码器模式)，采样编码器*/
-  btim_timx_int_init(1000-1, 84-1);			/*初始化TIM6普通定时器，20ms周期闭环检测*/
-
-  /*MCU测试函数*/
-  debug_structSize();
-  pid_init();
+	HAL_Init();
+	//MX_GPIO_Init();
+	sys_stm32_clock_init(336, 8, 2, 7);
+	delay_init(168);
+	led_init();
+	key_init();                              /* 初始化按键 */
+	usart_init(115200);
 
 
-#ifdef ENCODER_SIMULATOR_MODE
-//  stepper_star(STEPPER_MOTOR_1);
-//  stepper_star(STEPPER_MOTOR_2);
-#endif
+	//rs232_init(9600);                       /* 初始化RS232 */
 
-  //rs232_send_data((uint8_t *)("\r\n hello world\r\n \0"), 20);
-  xTaskCreate(start_task,
+	debug_init();
+	stepper_init(0xFFFF-1, 84 - 1);      		/*初始化步进电机驱动和TIM8		   */
+	gtim_timx_encoder_chy_init(0xffff, 0);	/*初始化TIM3(编码器模式)，采样编码器*/
+	btim_timx_int_init(1000-1, 84-1);			/*初始化TIM6普通定时器，20ms周期闭环检测*/
+
+	/*MCU测试函数*/
+	debug_structSize();
+	pid_init();
+	init_photoelectric_switch();
+	init_input_io();
+
+	rtc_init();
+    rtc_get_time(&hour, &min, &sec, &ampm);
+	printf("Time:%02d:%02d:%02d\r\n", hour, min, sec);
+
+	#ifdef ENCODER_SIMULATOR_MODE
+	//  stepper_star(STEPPER_MOTOR_1);
+	//  stepper_star(STEPPER_MOTOR_2);
+	#endif
+
+
+	/*文件系统和USB 驱动相关*/
+	exfuns_init();		//为Fatfs相关变量申请内存
+
+	USB_Init();
+
+	//rs232_send_data((uint8_t *)("\r\n hello world\r\n \0"), 20);
+	xTaskCreate(start_task,
 			  START_TASK_NAME,
 			  START_Task_Stack,
 			  NULL,
 			  START_Task_Prio,
 			  &Start_Handle_t);
 
-  vTaskStartScheduler();
-  while(1)
-  {
-      delay_ms(10);
-  }
+	vTaskStartScheduler();
+	while(1)
+	{
+	  //USBH_Process(&g_hUSBHost);
+	  delay_ms(10);
+	}
 }
 
 

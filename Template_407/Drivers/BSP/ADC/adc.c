@@ -41,7 +41,10 @@ void adc_dma_init(uint32_t mar)
     ADC_ChannelConfTypeDef adc_ch_conf = {0};
 
     ADC_ADCX_CHY_CLK_ENABLE();                                              /* 使能ADCx时钟 */
-    ADC_ADCX_CHY_GPIO_CLK_ENABLE();                                         /* 开启GPIO时钟 */
+    ADC_ADCX_CH1_GPIO_CLK_ENABLE();                                         /* 开启GPIO时钟 */
+    ADC_ADCX_CH2_GPIO_CLK_ENABLE();                                         /* 开启GPIO时钟 */
+    ADC_ADCX_CH3_GPIO_CLK_ENABLE();                                         /* 开启GPIO时钟 */
+    ADC_ADCX_CH4_GPIO_CLK_ENABLE();                                         /* 开启GPIO时钟 */
 
     if ((uint32_t)ADC_ADCX_DMASx > (uint32_t)DMA2)                          /* 大于DMA2的基地址, 则为DMA2的数据流通道了 */
     {
@@ -53,10 +56,29 @@ void adc_dma_init(uint32_t mar)
     }
 
     /* 设置AD采集通道对应IO引脚工作模式 */
-    gpio_init_struct.Pin = ADC_ADCX_CHY_GPIO_PIN;
+    gpio_init_struct.Pin = ADC_ADCX_CH1_GPIO_PIN;
     gpio_init_struct.Mode = GPIO_MODE_ANALOG;
     gpio_init_struct.Pull = GPIO_PULLUP;
-    HAL_GPIO_Init(ADC_ADCX_CHY_GPIO_PORT, &gpio_init_struct);
+    HAL_GPIO_Init(ADC_ADCX_CH1_GPIO_PORT, &gpio_init_struct);
+
+    /* 设置AD采集通道对应IO引脚工作模式 */
+    gpio_init_struct.Pin = ADC_ADCX_CH2_GPIO_PIN;
+    gpio_init_struct.Mode = GPIO_MODE_ANALOG;
+    gpio_init_struct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(ADC_ADCX_CH2_GPIO_PORT, &gpio_init_struct);
+
+    /* 设置AD采集通道对应IO引脚工作模式 */
+    gpio_init_struct.Pin = ADC_ADCX_CH3_GPIO_PIN;
+    gpio_init_struct.Mode = GPIO_MODE_ANALOG;
+    gpio_init_struct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(ADC_ADCX_CH3_GPIO_PORT, &gpio_init_struct);
+
+    /* 设置AD采集通道对应IO引脚工作模式 */
+    gpio_init_struct.Pin = ADC_ADCX_CH4_GPIO_PIN;
+    gpio_init_struct.Mode = GPIO_MODE_ANALOG;
+    gpio_init_struct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(ADC_ADCX_CH4_GPIO_PORT, &gpio_init_struct);
+
 
     /* 初始化DMA */
     g_dma_adc_handle.Instance = ADC_ADCX_DMASx;                             /* 设置DMA数据流 */
@@ -70,13 +92,13 @@ void adc_dma_init(uint32_t mar)
     g_dma_adc_handle.Init.Priority = DMA_PRIORITY_MEDIUM;                   /* 中等优先级 */
     HAL_DMA_Init(&g_dma_adc_handle);
 
-    g_adc_dma_handle.Instance = ADC_ADCX;
+    g_adc_dma_handle.Instance = ADC_ADC1;
     g_adc_dma_handle.Init.ClockPrescaler = ADC_CLOCKPRESCALER_PCLK_DIV4;    /* 4分频，21Mhz */
     g_adc_dma_handle.Init.Resolution = ADC_RESOLUTION_12B;                  /* 12位模式 */
     g_adc_dma_handle.Init.DataAlign = ADC_DATAALIGN_RIGHT;                  /* 右对齐 */
-    g_adc_dma_handle.Init.ScanConvMode = DISABLE;                           /* 非扫描模式 */
+    g_adc_dma_handle.Init.ScanConvMode = ENABLE;                           /* 非扫描模式 */
     g_adc_dma_handle.Init.ContinuousConvMode = ENABLE;                      /* 开启连续转换 */
-    g_adc_dma_handle.Init.NbrOfConversion = 1;                              /* 本实验用到1个规则通道序列 */
+    g_adc_dma_handle.Init.NbrOfConversion = ADC1_CH_NUM;                              /* 本实验用到1个规则通道序列 */
     g_adc_dma_handle.Init.DiscontinuousConvMode = DISABLE;                  /* 禁止不连续采样模式 */
     g_adc_dma_handle.Init.NbrOfDiscConversion = 0;                          /* 不连续采样通道数为0 */
     g_adc_dma_handle.Init.ExternalTrigConv = ADC_SOFTWARE_START;            /* 软件触发 */
@@ -85,11 +107,45 @@ void adc_dma_init(uint32_t mar)
 
     __HAL_LINKDMA(&g_adc_dma_handle, DMA_Handle, g_dma_adc_handle);         /* 把ADC和DMA连接起来 */
 
-    /* 配置ADC通道 */
-    adc_ch_conf.Channel = ADC_ADCX_CHY;                                     /* 通道 */
+    /* *************配置ADC通道, 前四个通道是外设ADC1的通道；后三个通道是外设ADC3的通道**************** */
+    adc_ch_conf.Channel = ADC_ADCX_CH1;                                     /* 通道 */
     adc_ch_conf.Rank = 1;                                                   /* 序列 */
     adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
     HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */
+
+    adc_ch_conf.Channel = ADC_ADCX_CH2;                                     /* 通道 */
+    adc_ch_conf.Rank = 2;                                                   /* 序列 */
+    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
+    HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */
+
+    adc_ch_conf.Channel = ADC_ADCX_CH3;                                     /* 通道 */
+    adc_ch_conf.Rank = 3;                                                   /* 序列 */
+    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
+    HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */
+
+
+    adc_ch_conf.Channel = ADC_ADCX_CH4;                                     /* 通道 */
+    adc_ch_conf.Rank = 4;                                                   /* 序列 */
+    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
+    HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */
+    /* *************配置ADC通道, 前四个通道是外设ADC1的通道；后三个通道是外设ADC3的通道**************** */
+
+
+//    adc_ch_conf.Channel = ADC_ADCX_CH3;                                     /* 通道 */
+//    adc_ch_conf.Rank = 2;                                                   /* 序列 */
+//    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
+//    HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */
+//
+//    adc_ch_conf.Channel = ADC_ADCX_CH6;                                     /* 通道 */
+//    adc_ch_conf.Rank = 3;                                                   /* 序列 */
+//    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
+//    HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */
+//
+//    adc_ch_conf.Channel = ADC_ADCX_CH6;                                     /* 通道 */
+//    adc_ch_conf.Rank = 3;                                                   /* 序列 */
+//    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
+//    HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */
+
 
     /* 配置DMA数据流请求中断优先级 */
     HAL_NVIC_SetPriority(ADC_ADCX_DMASx_IRQn, 3, 3);
@@ -113,7 +169,7 @@ void adc_dma_enable(uint16_t cndtr)
     __HAL_DMA_ENABLE(&g_dma_adc_handle);            /* 开启DMA传输 */
 
     __HAL_ADC_ENABLE(&g_adc_dma_handle);            /* 重新启动ADC */
-    ADC_ADCX->CR2 |= 1 << 30;                       /* 启动规则转换通道 */
+    ADC_ADC1->CR2 |= 1 << 30;                       /* 启动规则转换通道 */
 }
 
 /**

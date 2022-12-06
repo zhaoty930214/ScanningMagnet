@@ -1,5 +1,6 @@
-../Core/usr/src/my_tasks.c:47:6:Statistic_task	16	static
-../Core/usr/src/my_tasks.c:87:6:HeartBeat_task	24	static
-../Core/usr/src/my_tasks.c:145:6:UsartCommu_task	88	static
-../Core/usr/src/my_tasks.c:231:6:Measure_task	24	static
-../Core/usr/src/my_tasks.c:267:6:start_task	32	static
+../Core/usr/src/my_tasks.c:55:6:Statistic_task	16	static
+../Core/usr/src/my_tasks.c:93:6:HeartBeat_task	24	static
+../Core/usr/src/my_tasks.c:149:6:UsartCommu_task	88	static
+../Core/usr/src/my_tasks.c:243:6:Measure_task	64	static
+../Core/usr/src/my_tasks.c:330:6:USBProc_task	16	static
+../Core/usr/src/my_tasks.c:341:6:start_task	32	static

@@ -1,10 +1,10 @@
 #include "tsk_functions.h"
-#include "Measure_Types.h"
 #include "Measure_Constants.h"
 #include "LED.h"
-#include <stdbool.h>
 #include "stepper_tim.h"
 #include "gtim.h"
+#include "adc.h"
+#include "rtc.h"
 
 extern MeasureConfig_t g_measureCfg;
 
@@ -217,10 +217,12 @@ void init_measureCfg(float x, float y, float z)
 	assert(0 < y && y < 10.01);
 	assert(0 < z && z < 10.01);
 
-	g_measureCfg.step_x = x;
-	g_measureCfg.step_y = y;
-	g_measureCfg.step_z = z;
+	g_measureCfg.measure_config.step_x = x;
+	g_measureCfg.measure_config.step_y = y;
+	g_measureCfg.measure_config.step_z = z;
 }
+
+
 
 
 
@@ -231,17 +233,6 @@ void api_axis_x(void *param)
 
 
 
-void ADC_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
-{
-	/*ADC采样*/
-	pWorkFlow->MainFlow = Main_WorkFlow_Record;
-}
-
-void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
-{
-	/*数据记录*/
-	pWorkFlow->MainFlow = Main_WorkFlow_Move;
-}
 
 
 /**
@@ -250,28 +241,56 @@ void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 void update_stepper_params(void)
 {
 	/*清零XYZ计数值*/
-	g_measureCfg.x_index = 0;
-	g_measureCfg.y_index = 0;
-	g_measureCfg.z_index = 0;
+	g_measureCfg.measure_params.x_index[Axis_x] = 0;
+	g_measureCfg.measure_params.x_index[Axis_y] = 0;
+	g_measureCfg.measure_params.x_index[Axis_z] = 0;
+
+	g_measureCfg.measure_params.dir_x[Axis_x] = AXIS_X_DEFAULT_DIRECTION;
+	g_measureCfg.measure_params.dir_x[Axis_y] = AXIS_Y_DEFAULT_DIRECTION;
 
 	/*计算三轴各自的步进计次数*/
-	g_measureCfg.step_cnt_x = X_LENGTH/g_measureCfg.step_x;
-	g_measureCfg.step_cnt_y = Y_LENGTH/g_measureCfg.step_y;
-	g_measureCfg.step_cnt_z = Z_LENGTH/g_measureCfg.step_z;
+	g_measureCfg.measure_params.step_cnt_x[Axis_x] = X_LENGTH/g_measureCfg.measure_config.step_x;
+	g_measureCfg.measure_params.step_cnt_x[Axis_y] = Y_LENGTH/g_measureCfg.measure_config.step_y;
+	g_measureCfg.measure_params.step_cnt_x[Axis_z] = Z_LENGTH/g_measureCfg.measure_config.step_z;
 
 	/*计算三轴各自的步进脉冲数 = 每毫米对应的脉冲数*步进距离毫米单位. */
-	g_measureCfg.pulse_cnt_x = PPM * g_measureCfg.step_x;
-	g_measureCfg.pulse_cnt_y = PPM * g_measureCfg.step_y;
-	g_measureCfg.pulse_cnt_z = PPM * g_measureCfg.step_z;
+	g_measureCfg.measure_params.pulse_cnt_x[Axis_x] = PPM * g_measureCfg.measure_config.step_x;
+	g_measureCfg.measure_params.pulse_cnt_x[Axis_y] = PPM * g_measureCfg.measure_config.step_y;
+	g_measureCfg.measure_params.pulse_cnt_x[Axis_z] = PPM * g_measureCfg.measure_config.step_z;
 
 	//*User_SetPoint += pulse_cnt_x;
-	printf("PPM is %f and | CntPerCycle_x is %d | Pulses_x is %d\r\n", PPM, g_measureCfg.step_cnt_x, g_measureCfg.pulse_cnt_x);
-	printf("PPM is %f and | CntPerCycle_y is %d | Pulses_y is %d\r\n", PPM, g_measureCfg.step_cnt_y, g_measureCfg.pulse_cnt_y);
-	printf("PPM is %f and | CntPerCycle_z is %d | Pulses_z is %d\r\n", PPM, g_measureCfg.step_cnt_z, g_measureCfg.pulse_cnt_z);
+	printf("PPM is %f and | CntPerCycle_x is %d | Pulses_x is %d\r\n", PPM, g_measureCfg.measure_params.step_cnt_x[Axis_x], g_measureCfg.measure_params.pulse_cnt_x[Axis_x]);
+	printf("PPM is %f and | CntPerCycle_y is %d | Pulses_y is %d\r\n", PPM, g_measureCfg.measure_params.step_cnt_x[Axis_y], g_measureCfg.measure_params.pulse_cnt_x[Axis_y]);
+	printf("PPM is %f and | CntPerCycle_z is %d | Pulses_z is %d\r\n", PPM, g_measureCfg.measure_params.step_cnt_x[Axis_z], g_measureCfg.measure_params.pulse_cnt_x[Axis_z]);
 
-	printf("Estimate measuring time is %d seconds \r\n", g_measureCfg.step_cnt_x*
-														 g_measureCfg.step_cnt_y*
-														 g_measureCfg.step_cnt_z/100);
+	printf("Estimate measuring time is %d seconds \r\n", g_measureCfg.measure_params.step_cnt_x[Axis_x]*
+														 g_measureCfg.measure_params.step_cnt_x[Axis_y]*
+														 g_measureCfg.measure_params.step_cnt_x[Axis_z]/100);
+	uint8_t buf_size = 80;
+	char *buf = (char *) malloc(buf_size);
+
+	if(buf)
+	{
+		snprintf(buf, buf_size, "PPM is %f and | CntPerCycle_x is %d | Pulses_x is %d\r\n",
+					         PPM, g_measureCfg.measure_params.step_cnt_x[Axis_x], g_measureCfg.measure_params.pulse_cnt_x[Axis_x]);
+		SG_LOG(SEVERITY_INFO, buf);
+
+		snprintf(buf, buf_size, "PPM is %f and | CntPerCycle_y is %d | Pulses_y is %d\r\n",
+							 PPM, g_measureCfg.measure_params.step_cnt_x[Axis_y], g_measureCfg.measure_params.pulse_cnt_x[Axis_y]);
+		SG_LOG(SEVERITY_INFO, buf);
+
+		snprintf(buf, buf_size, "PPM is %f and | CntPerCycle_z is %d | Pulses_z is %d\r\n",
+							 PPM, g_measureCfg.measure_params.step_cnt_x[Axis_z], g_measureCfg.measure_params.pulse_cnt_x[Axis_y]);
+		SG_LOG(SEVERITY_INFO, buf);
+
+		free(buf);
+	}
+	else
+	{
+
+	}
+	SG_LOG(SEVERITY_INFO, "Got Update Measure Config");
+
 }
 
 
@@ -282,7 +301,9 @@ void tsk_Move_Execute(void *param)
 {
 	float p1,p2;
 	uint32_t notify_value;
-
+	FRESULT f_result;
+//	adc_dma_init((uint32_t)&adc_buff[0]);
+//	adc_dma_enable(ADC_BUF_LEN);
 
 	update_stepper_params();
 
@@ -316,37 +337,49 @@ void tsk_Move_Execute(void *param)
 	notify_value = 0;
 	xTaskNotify(xTaskGetCurrentTaskHandle(), notify_value, eSetValueWithOverwrite);
 
-	while( tsk_Measuring() != true)
+	f_result = Create_Measure_file();
+	if(f_result == FR_OK)
+	{
+		SG_LOG(SEVERITY_INFO, "Create Measuring file success");
+	}
+	else
+	{
+		SG_LOG(SEVERITY_FATAL, "Create Measuring file failed");
+	}
+
+	while( tsk_WorkFlow_Handler() != true)
 	{
 		/*检查有无停止命令*/
 		notify_value = ulTaskNotifyTake(pdTRUE, 0);
 		if(notify_value == NOTIFY_STOP_MEASURE)
 		{
-			printf("Test stop due to stop command \r\n");
+			SG_LOG(SEVERITY_WARNING, "Test stop due to STOP command");
 			return ;
 		}
 
-		vTaskDelay(100);
+		//vTaskDelay(100);
 		//计算进度，串口打印进度表或发送指令。
-//		#if ENABLE_UART_DRAW
-//			p1 = (float) (g_measureCfg.x_index)/g_measureCfg.step_cnt_x;
-//			p2 = (float) (g_measureCfg.y_index)/g_measureCfg.step_cnt_y;
-//
-//			if( (g_measureCfg.x_index < g_measureCfg.step_cnt_x) &&
-//				(g_measureCfg.y_index < g_measureCfg.step_cnt_y) )
-//			{
-//				/*循环体外部作图*/
-//				draw_rectangle(g_measureCfg.dir_x, g_measureCfg.dir_y, p1, p2);
-//				vTaskDelay(5);
-//				for(int i=0; i<10; i++)
-//				{
-//					printf("\033[1A"); //先回到上一行
-//				}
-//			}
-//		#endif
+		#if ENABLE_UART_DRAW
+			p1 = (float) (g_measureCfg.measure_params.x_index[Axis_x])/g_measureCfg.measure_params.step_cnt_x[Axis_x];
+			p2 = (float) (g_measureCfg.measure_params.x_index[Axis_y])/g_measureCfg.measure_params.step_cnt_x[Axis_y];
+
+			if( (g_measureCfg.measure_params.x_index[Axis_x] < g_measureCfg.measure_params.step_cnt_x[Axis_x]) &&
+				(g_measureCfg.measure_params.x_index[Axis_y] < g_measureCfg.measure_params.step_cnt_x[Axis_y]) )
+			{
+				/*循环体外部作图*/
+				draw_rectangle(g_measureCfg.measure_params.dir_x[Axis_x],
+							   g_measureCfg.measure_params.dir_x[Axis_y],
+							   p1, p2);
+				vTaskDelay(5);
+				for(int i=0; i<10; i++)
+				{
+					printf("\033[1A"); //先回到上一行
+				}
+			}
+		#endif
 	}
-	printf("Finish measure tracing task\r\n");
-	//已知步进距离，计算步进脉冲数
+	SG_LOG(SEVERITY_INFO, "Finish measure tracing task");
+
 }
 
 
@@ -358,7 +391,8 @@ void tsk_Move_step(uint8_t axis_id, int set_point)
 	{
 	case Axis_x:
 		g_encoder_t.g_run_flag = 1;
-		if(g_measureCfg.dir_x)
+		g_step_motor.setPoint_flag = true;
+		if(g_measureCfg.measure_params.dir_x)
 			*MOTOR_X_GO += set_point;
 		else
 			*MOTOR_X_GO -= set_point;
@@ -376,6 +410,12 @@ void tsk_Move_step(uint8_t axis_id, int set_point)
 }
 
 
+
+uint8_t s_workflow_table[Axis_Count]={
+		//Axis_X			Axis_Y				Axis_Z
+		Sub_WorkFlow_Y,	    Sub_WorkFlow_Z,		Sub_WorkFlow_Finish
+};
+
 /**
  *三轴移动函数
  *@参数, param: 工作流结构体指针参数
@@ -387,64 +427,95 @@ void Move_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 
 	switch(*psub_flow)
 	{
-	/*因为是在外部作图，所以当y_index = step_cnt_y即Y的翻转判定时，不改变X的方向 */
-	case Sub_WorkFlow_X:
-		/*当前X轴行程未完成*/
-		if(g_measureCfg.x_index < g_measureCfg.step_cnt_x)
+	case 0:
+	case 1:
+	case 2:
+		if(g_measureCfg.measure_params.x_index[*psub_flow] <=
+		   g_measureCfg.measure_params.step_cnt_x[*psub_flow])
 		{
-			g_measureCfg.x_index++;
-			//X轴闭环移动
-			tsk_Move_step(Axis_x, g_measureCfg.pulse_cnt_x);
-
-			*pmain_flow = Main_WorkFlow_ADC;
+			g_measureCfg.measure_params.x_index[*psub_flow]++;
+#if !ENABLE_UART_DRAW
+			tsk_Move_step(*psub_flow, g_measureCfg.measure_params.pulse_cnt_x[*psub_flow]);
+#endif
+			if(*psub_flow == Sub_WorkFlow_X)
+				*pmain_flow = Main_WorkFlow_ADC;
+			else if(*psub_flow == Sub_WorkFlow_Y)
+				*psub_flow = Sub_WorkFlow_X;
+			else if(*psub_flow == Sub_WorkFlow_Z)
+				*psub_flow = Sub_WorkFlow_X;
 		}
 		else
 		{
-//			if(g_measureCfg.y_index != g_measureCfg.step_cnt_y)
-//			{
-//				g_measureCfg.dir_x   = !g_measureCfg.dir_x;
-//				printf("Axis X direction toggle\r\n");
-//			}
-			g_measureCfg.dir_x   = !g_measureCfg.dir_x;
-			printf("Axis X direction toggle\r\n");
-			g_measureCfg.x_index = 0;
-			*psub_flow = Sub_WorkFlow_Y;
+			g_measureCfg.measure_params.dir_x[*psub_flow] = !g_measureCfg.measure_params.dir_x[*psub_flow];
+			char buf[30];
+			snprintf(buf, 30, "Axis %d direction toggle", *psub_flow);
+			SG_LOG(SEVERITY_INFO, buf);
+			g_measureCfg.measure_params.x_index[*psub_flow] = 0;
+			*psub_flow = s_workflow_table[*psub_flow];
+
 		}
 		break;
 
-	case Sub_WorkFlow_Y:
-		/*当前Y轴行程未完成*/
-		if(g_measureCfg.y_index < g_measureCfg.step_cnt_y)
-		{
-			g_measureCfg.y_index++;
-			//X轴闭环移动
-			tsk_Move_step(Axis_y, g_measureCfg.pulse_cnt_y);
 
-			*psub_flow = Sub_WorkFlow_X;
-		}
-		else
-		{
-			g_measureCfg.dir_y   = !g_measureCfg.dir_y;
-			g_measureCfg.y_index = 0;
-			*psub_flow = Sub_WorkFlow_Z;
-		}
-		break;
-
-	case Sub_WorkFlow_Z:
-		/*当前Y轴行程未完成*/
-		if(g_measureCfg.z_index < g_measureCfg.step_cnt_z)
-		{
-			g_measureCfg.z_index++;
-			//X轴闭环移动
-			tsk_Move_step(Axis_z, g_measureCfg.pulse_cnt_z);
-			*psub_flow = Sub_WorkFlow_X;
-		}
-		else
-		{
-			g_measureCfg.z_index = 0;
-			*psub_flow = Sub_WorkFlow_Finish;
-		}
-		break;
+//	/*因为是在外部作图，所以当y_index = step_cnt_y即Y的翻转判定时，不改变X的方向 */
+//	case Sub_WorkFlow_X:
+//		/*当前X轴行程未完成*/
+//		if(g_measureCfg.measure_params.x_index <= g_measureCfg.measure_params.step_cnt_x)
+//		{
+//			g_measureCfg.measure_params.x_index++;
+//			//X轴闭环移动
+//#if !ENABLE_UART_DRAW
+//			tsk_Move_step(Axis_x, g_measureCfg.measure_params.pulse_cnt_x);
+//#endif
+//			*pmain_flow = Main_WorkFlow_ADC;
+//		}
+//		else
+//		{
+////			if(g_measureCfg.y_index != g_measureCfg.step_cnt_y)
+////			{
+////				g_measureCfg.dir_x   = !g_measureCfg.dir_x;
+////				printf("Axis X direction toggle\r\n");
+////			}
+//			g_measureCfg.measure_params.dir_x   = !g_measureCfg.measure_params.dir_x;
+//			printf("Axis X direction toggle\r\n");
+//			g_measureCfg.measure_params.x_index = 0;
+//			*psub_flow = Sub_WorkFlow_Y;
+//		}
+//		break;
+//
+//	case Sub_WorkFlow_Y:
+//		/*当前Y轴行程未完成*/
+//		if(g_measureCfg.measure_params.y_index <= g_measureCfg.measure_params.step_cnt_y)
+//		{
+//			g_measureCfg.measure_params.y_index++;
+//			//X轴闭环移动
+//			//tsk_Move_step(Axis_y, g_measureCfg.pulse_cnt_y);
+//
+//			*psub_flow = Sub_WorkFlow_X;
+//		}
+//		else
+//		{
+//			g_measureCfg.measure_params.dir_y   = !g_measureCfg.measure_params.dir_y;
+//			g_measureCfg.measure_params.y_index = 0;
+//			*psub_flow = Sub_WorkFlow_Z;
+//		}
+//		break;
+//
+//	case Sub_WorkFlow_Z:
+//		/*当前Y轴行程未完成*/
+//		if(g_measureCfg.measure_params.z_index < g_measureCfg.measure_params.step_cnt_z)
+//		{
+//			g_measureCfg.measure_params.z_index++;
+//			//X轴闭环移动
+//			//tsk_Move_step(Axis_z, g_measureCfg.pulse_cnt_z);
+//			*psub_flow = Sub_WorkFlow_X;
+//		}
+//		else
+//		{
+//			g_measureCfg.measure_params.z_index = 0;
+//			*psub_flow = Sub_WorkFlow_Finish;
+//		}
+//		break;
 
 	default:
 		break;
@@ -452,6 +523,22 @@ void Move_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 }
 
 
+uint16_t adc_buff[ADC_BUF_LEN];
+void ADC_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
+{
+
+	/*ADC采样*/
+	pWorkFlow->MainFlow = Main_WorkFlow_Record;
+
+}
+
+void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
+{
+	/*数据记录*/
+	pWorkFlow->MainFlow = Main_WorkFlow_Move;
+
+
+}
 
 /**
  * 测量任务开始
@@ -467,26 +554,35 @@ void Move_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
  *		Y轴边缘 -> 子状态改为 Z轴
  *
  */
-bool tsk_Measuring(void)
+bool tsk_WorkFlow_Handler(void)
 {
 	static WorkFlow_Level_t s_workFlowLevel = {
 			.MainFlow = Main_WorkFlow_Move,
 			.SubFlow  = Sub_WorkFlow_X
 	};
 
-	switch(s_workFlowLevel.MainFlow){
-	case Main_WorkFlow_Move:
-		Move_WorkFlow_handler(&s_workFlowLevel);
-		break;
 
-	case Main_WorkFlow_ADC:
-		ADC_WorkFlow_handler(&s_workFlowLevel);
-		break;
-
-	case Main_WorkFlow_Record:
-		Record_WorkFlow_handler(&s_workFlowLevel);
-		break;
+	assert(s_workFlowLevel.MainFlow>-1 && s_workFlowLevel.MainFlow < 3);
+	if( NULL == sg_WorkFlow.workflow_handler.mainWorkFlow_api[s_workFlowLevel.MainFlow] )
+	{
+		initialize_WorkFlow_Api();
 	}
+	sg_WorkFlow.workflow_handler.mainWorkFlow_api[s_workFlowLevel.MainFlow](&s_workFlowLevel);
+
+
+//	switch(s_workFlowLevel.MainFlow){
+//	case Main_WorkFlow_Move:
+//		Move_WorkFlow_handler(&s_workFlowLevel);
+//		break;
+//
+//	case Main_WorkFlow_ADC:
+//		ADC_WorkFlow_handler(&s_workFlowLevel);
+//		break;
+//
+//	case Main_WorkFlow_Record:
+//		Record_WorkFlow_handler(&s_workFlowLevel);
+//		break;
+//	}
 
 	if(Sub_WorkFlow_Finish == s_workFlowLevel.SubFlow)
 	{
@@ -498,17 +594,57 @@ bool tsk_Measuring(void)
 		return false;
 }
 
-
-void init_input_io(void)
+void tsk_USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id)
 {
-    GPIO_InitTypeDef gpio_init_struct;                 /* GPIO配置参数存储变量 */
-    __HAL_RCC_GPIOG_CLK_ENABLE();    				   /* PG口时钟使能 */
+    uint32_t total, free;
+    uint8_t res = 0;
 
-    gpio_init_struct.Pin = GPIO_PIN_15;                 /* GP8引脚 */
-    gpio_init_struct.Mode = GPIO_MODE_INPUT;           /* 输入 */
-    gpio_init_struct.Speed = GPIO_SPEED_FREQ_HIGH;     /* 高速 */
-    gpio_init_struct.Pull = GPIO_PULLUP;     			   /* 上拉 */
-    HAL_GPIO_Init(GPIOA, &gpio_init_struct);           /* PG8引脚模式设置,输入 */
+    switch (id)
+    {
+        case HOST_USER_SELECT_CONFIGURATION:
+            break;
+
+        case HOST_USER_DISCONNECTION:
+            f_mount(0, "0:", 1);        /* 卸载U盘 */
+            printf("U Disk connecting...\r\n");
+            break;
+
+        case HOST_USER_CLASS_ACTIVE:
+        	printf("U Disk connect successful!\r\n");
+            res = f_mount(fs[0], "0:", 1);    /* 重新挂载U盘 */
+
+            printf("mount fatfs return %d\r\n", res);
+
+            res = exfuns_get_free("0:", &total, &free);
+
+            if (res == 0)
+            {
+            	printf("FATFS OK!\r\n");
+            	printf("U Disk Total Size:  %uMB\r\n", total >> 10);
+            	printf("U Disk Free Size:   %uMB\r\n", free >> 10);
+
+            	Create_Measure_file();
+//            	uint8_t buf[50];
+//            	time_string(buf, 50);
+//            	mf_open(buf, FA_CREATE_ALWAYS);
+//            	mf_scan_files("0:/MagnetMeasure");
+
+            	vTaskDelay(500);
+            	SG_LOG(SEVERITY_INFO, "Initialize U-disk Success");
+
+            }
+            else
+            {
+            	printf("FATFS ERROR!\r\n");
+            }
+            break;
+
+        case HOST_USER_CONNECTION:
+            break;
+
+        default:
+            break;
+    }
 }
 
 
@@ -555,9 +691,9 @@ void sliede_way_test(uint32_t dis_mm, bool dir_t)
 
 }
 
-WorkFlow_Handler_t handler_api = {
-	.mainWorkFlow_api_adc = Move_WorkFlow_handler,
-};
+//WorkFlow_Handler_t handler_api = {
+//	.mainWorkFlow_api[Main_WorkFlow_Move] = Move_WorkFlow_handler,
+//};
 
 
 void initialize_WorkFlow_Api(void)
@@ -565,10 +701,54 @@ void initialize_WorkFlow_Api(void)
 	sg_WorkFlow.workflow_level.MainFlow = Main_WorkFlow_Move;
 	sg_WorkFlow.workflow_level.SubFlow  = Sub_WorkFlow_X;
 
-	sg_WorkFlow.workflow_handler.mainWorkFlow_api_move   = &Move_WorkFlow_handler;
-	sg_WorkFlow.workflow_handler.mainWorkFlow_api_adc    = &ADC_WorkFlow_handler;
-	sg_WorkFlow.workflow_handler.mainWorkFlow_api_record = &Record_WorkFlow_handler;
+	sg_WorkFlow.workflow_handler.mainWorkFlow_api[Main_WorkFlow_Move]   = &Move_WorkFlow_handler;
+	sg_WorkFlow.workflow_handler.mainWorkFlow_api[Main_WorkFlow_ADC]    = &ADC_WorkFlow_handler;
+	sg_WorkFlow.workflow_handler.mainWorkFlow_api[Main_WorkFlow_Record] = &Record_WorkFlow_handler;
 	sg_WorkFlow.workflow_handler.subWorkFlow_api_moveX = NULL;
 	//sg_WorkFlow.workflow_handler.
+}
+
+/**
+ * Create_Measure_file
+ * 创建测试文件, 文件名中加入时间戳
+ */
+FRESULT Create_Measure_file(void)
+{
+	FRESULT f_result;
+	/*首先创建文件夹,若已存在该文件夹，则创建失败*/
+	f_result = mf_mkdir(MEASURE_DIR);
+
+	printf("Mkdir return %d\r\n", f_result);
+	/*合成文件名*/
+	/* MEASURE_DIR/202210191450.SMTEST*/
+	uint8_t file_name[50];
+	time_string(file_name, 50);
+	sprintf(file_name, "%s%s", file_name, ".SGTEST");
+	f_result = mf_open(file_name, FA_CREATE_NEW | FA_WRITE | FA_READ);
+
+	uint8_t buf_test_config[200];
+
+	snprintf(buf_test_config ,"%s", "File description: This file is auto-generated by Scanning Magnet Test Stand and was just used in-house of Mevion Company\r\n\0");
+	mf_write(buf_test_config, strlen(buf_test_config));
+
+	snprintf(buf_test_config, 200,
+			"Test Time: %s\r\n\0", file_name);
+	mf_write(buf_test_config, strlen(buf_test_config));
+
+	sprintf(buf_test_config, "Test Config:\r\n \
+			 \t X_Step: %2.2fmm \r\n \
+			 \t Y_Step: %2.2fmm \r\n \
+			 \t Z_Step: %2.2fmm\0",
+			 g_measureCfg.measure_config.step_x,
+			 g_measureCfg.measure_config.step_y,
+			 g_measureCfg.measure_config.step_z);
+
+	mf_write(buf_test_config, strlen(buf_test_config));
+
+
+	//free(buf_test_config);
+
+	mf_close();
+	return f_result;
 }
 

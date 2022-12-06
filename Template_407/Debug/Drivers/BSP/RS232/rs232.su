@@ -1,4 +1,4 @@
-../Drivers/BSP/RS232/rs232.c:39:6:UART5_IRQHandler	16	static,ignoring_inline_asm
+../Drivers/BSP/RS232/rs232.c:39:6:UART5_IRQHandler	16	static
 ../Drivers/BSP/RS232/rs232.c:109:6:rs232_init	48	static
 ../Drivers/BSP/RS232/rs232.c:155:6:rs232_send_data	16	static
 ../Drivers/BSP/RS232/rs232.c:169:6:rs232_receive_data	24	static

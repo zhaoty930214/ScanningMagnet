@@ -222,7 +222,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                 g_encoder_t.motor_pwm = increment_pid_ctrl(&g_location_pid, g_step_motor.location);
 
 
-            	//printf("increment_pid_ctrl return value %d\r\n", g_encoder_t.motor_pwm);
+//            	printf("increment_pid_ctrl return value %d @setpoint value %d\r\n",
+//            			g_encoder_t.motor_pwm,
+//						g_location_pid.SetPoint);
 
 
                 if( 0!= g_encoder_t.motor_pwm)
@@ -236,7 +238,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                 	if(flag_match_debug == false)
                 	{
                 		flag_match_debug = true;
-                		printf("increment_pid_ctrl return 0!\r\n");
+                		//printf("increment_pid_ctrl return 0!\r\n");
                 		stepper_stop(STEPPER_MOTOR_1);
                 	}
                 }

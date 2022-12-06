@@ -25,7 +25,7 @@
 #define __STEPPER_MOTOR_H
 
 #include "sys.h"
-
+#include <stdbool.h>
 
 /******************************************************************************************/
 
@@ -45,10 +45,7 @@
 #define FEEDBACK_CONST  (float)(PULSE_REV/ENCODER_SPR)      /* 编码器和步进电机驱动器的比值（表示每个编码器输出线数对应的步进电机脉冲数） */
 
 
-//磁铁孔径的三维尺寸
-#define X_LENGTH	100
-#define Y_LENGTH	10
-#define Z_LENGTH	70
+
 
 //电机参数结构体
 typedef struct
@@ -58,6 +55,7 @@ typedef struct
     float speed;        /* 电机实际速度 */
     float setspeed;     /* 电机实际速度 */
     int32_t location;   /* 电机位置 */
+    __IO bool setPoint_flag;	/*用于指示PID设置点是否变化*/
 } Motor_TypeDef;
 
 
@@ -153,6 +151,10 @@ enum dir
     CCW = 0,                                                /* 逆时针旋转 */
     CW ,                                                    /* 顺时针旋转 */
 };
+
+
+#define AXIS_X_DEFAULT_DIRECTION	CW;
+#define AXIS_Y_DEFAULT_DIRECTION	CW
 
 extern Motor_TypeDef  g_step_motor;                         /* 电机参数变量 */
 /******************************************************************************************/

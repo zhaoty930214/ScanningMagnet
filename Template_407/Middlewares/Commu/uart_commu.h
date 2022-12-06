@@ -11,7 +11,7 @@
 #define DEBUG_DATA_END    0xAA       /* 帧尾 */
 
 #define IS_A_PACK_FOOT(x)		(x==DEBUG_DATA_END)?true:false
-#define IS_PACK_LENGTH_7(x)		(x==DEBUG_DATA_HEAD)?true:false
+#define IS_A_PACK_HEAD(x)		(x==DEBUG_DATA_HEAD)?true:false
 /*********************************** 开发板 ——> 上位机 *******************************************/
 
 /* 数据类别 */
@@ -166,7 +166,7 @@ typedef struct
 
 extern debug_data_rev debug_rev;     /* 接收变量 */
 
-#define DEBUG_REV_MAX_LEN   23       /* 接收数据最大长度 */
+
 
 /*****************************************************************************************************/
 
@@ -194,6 +194,12 @@ void debug_receive_pid(upload_type PIDx,float *P,float *I,float *D);            
 uint8_t debug_receive_ctrl_code(void);                                              /* 上位机命令接收 */
 
 void debug_structSize();
+
+/***********串口包解析函数***********/
+void config_parse_handler(void *arg, uint8_t index);
+void debug_parse_handler(void *arg, uint8_t index);
+void time_parse_handler(void *arg, uint8_t index);
+/***********串口包解析函数***********/
 #endif
 
 

@@ -9,19 +9,28 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include Middlewares/USB_CORE/Src/subdir.mk
+-include Middlewares/USB_CLASS/Src/subdir.mk
+-include Middlewares/USB_APP/Src/subdir.mk
 -include Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/subdir.mk
 -include Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/subdir.mk
 -include Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/subdir.mk
 -include Middlewares/Third_Party/FreeRTOS/Source/subdir.mk
+-include Middlewares/FATFS/exfuns/subdir.mk
+-include Middlewares/FATFS/Src/subdir.mk
 -include Middlewares/Commu/subdir.mk
 -include Drivers/SYSTEM/usart/subdir.mk
 -include Drivers/SYSTEM/sys/subdir.mk
 -include Drivers/SYSTEM/delay/subdir.mk
+-include Drivers/STM32F4xx_HAL_Driver/Src/Legacy/subdir.mk
 -include Drivers/STM32F4xx_HAL_Driver/Src/subdir.mk
 -include Drivers/BSP/TIMER/subdir.mk
 -include Drivers/BSP/STEPPER_MOTOR/subdir.mk
+-include Drivers/BSP/RTC/subdir.mk
 -include Drivers/BSP/RS232/subdir.mk
 -include Drivers/BSP/PID/subdir.mk
+-include Drivers/BSP/PHOTOE_SWITCH/subdir.mk
+-include Drivers/BSP/LOG/subdir.mk
 -include Drivers/BSP/LED/subdir.mk
 -include Drivers/BSP/KEY/subdir.mk
 -include Drivers/BSP/ADC/subdir.mk
