@@ -94,7 +94,23 @@ Drivers/BSP/STEPPER_MOTOR/stepper_motor.o: \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h \
  ../Drivers/BSP/LOG/SGLog.h ../Core/usr/TestStand/Measure_Types.h \
  ../Core/usr/TestStand/Measure_Constants.h \
- ../Core/usr/TestStand/Measure_Constants.h
+ ../Core/usr/TestStand/Measure_Constants.h ../Drivers/BSP/ADC/adc.h \
+ ../Core/usr/include/tsk_functions.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h \
+ ../Drivers/BSP/PID/pid.h ../Drivers/BSP/STEPPER_MOTOR/stepper_motor.h \
+ ../Middlewares/FATFS/exfuns/exfuns.h ../Middlewares/FATFS/Inc/ff.h \
+ ../Middlewares/FATFS/Inc/ffconf.h \
+ ../Middlewares/USB_CORE/Inc/usbh_core.h \
+ ../Middlewares/USB_APP/Inc/usbh_conf.h ../Drivers/SYSTEM/delay/delay.h \
+ ../Core/Inc/usart.h ../Core/Inc/main.h \
+ ../Middlewares/USB_CORE/Inc/usbh_def.h \
+ ../Middlewares/USB_CORE/Inc/usbh_ioreq.h \
+ ../Middlewares/USB_CORE/Inc/usbh_core.h \
+ ../Middlewares/USB_CORE/Inc/usbh_pipes.h \
+ ../Middlewares/USB_CORE/Inc/usbh_ctlreq.h \
+ ../Middlewares/USB_CLASS/Inc/usbh_msc.h \
+ ../Middlewares/USB_CLASS/Inc/usbh_msc_bot.h \
+ ../Middlewares/USB_CLASS/Inc/usbh_msc_scsi.h
 ../Drivers/BSP/STEPPER_MOTOR/stepper_motor.h:
 ../Drivers/SYSTEM/sys/sys.h:
 ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h:
@@ -194,3 +210,24 @@ Drivers/BSP/STEPPER_MOTOR/stepper_motor.o: \
 ../Core/usr/TestStand/Measure_Types.h:
 ../Core/usr/TestStand/Measure_Constants.h:
 ../Core/usr/TestStand/Measure_Constants.h:
+../Drivers/BSP/ADC/adc.h:
+../Core/usr/include/tsk_functions.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h:
+../Drivers/BSP/PID/pid.h:
+../Drivers/BSP/STEPPER_MOTOR/stepper_motor.h:
+../Middlewares/FATFS/exfuns/exfuns.h:
+../Middlewares/FATFS/Inc/ff.h:
+../Middlewares/FATFS/Inc/ffconf.h:
+../Middlewares/USB_CORE/Inc/usbh_core.h:
+../Middlewares/USB_APP/Inc/usbh_conf.h:
+../Drivers/SYSTEM/delay/delay.h:
+../Core/Inc/usart.h:
+../Core/Inc/main.h:
+../Middlewares/USB_CORE/Inc/usbh_def.h:
+../Middlewares/USB_CORE/Inc/usbh_ioreq.h:
+../Middlewares/USB_CORE/Inc/usbh_core.h:
+../Middlewares/USB_CORE/Inc/usbh_pipes.h:
+../Middlewares/USB_CORE/Inc/usbh_ctlreq.h:
+../Middlewares/USB_CLASS/Inc/usbh_msc.h:
+../Middlewares/USB_CLASS/Inc/usbh_msc_bot.h:
+../Middlewares/USB_CLASS/Inc/usbh_msc_scsi.h:

@@ -106,8 +106,8 @@ Drivers/SYSTEM/usart/my_usart.o: ../Drivers/SYSTEM/usart/my_usart.c \
  ../Middlewares/USB_CLASS/Inc/usbh_msc.h \
  ../Middlewares/USB_CLASS/Inc/usbh_msc_bot.h \
  ../Middlewares/USB_CLASS/Inc/usbh_msc_scsi.h ../Drivers/BSP/LOG/SGLog.h \
- ../Core/usr/TestStand/Measure_Constants.h ../Drivers/BSP/RS232/rs232.h \
- ../Core/Inc/main.h
+ ../Core/usr/TestStand/Measure_Constants.h ../Drivers/BSP/ADC/adc.h \
+ ../Drivers/BSP/RS232/rs232.h ../Core/Inc/main.h
 ../Drivers/SYSTEM/usart/my_usart.h:
 ../Drivers/SYSTEM/sys/sys.h:
 ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h:
@@ -222,5 +222,6 @@ Drivers/SYSTEM/usart/my_usart.o: ../Drivers/SYSTEM/usart/my_usart.c \
 ../Middlewares/USB_CLASS/Inc/usbh_msc_scsi.h:
 ../Drivers/BSP/LOG/SGLog.h:
 ../Core/usr/TestStand/Measure_Constants.h:
+../Drivers/BSP/ADC/adc.h:
 ../Drivers/BSP/RS232/rs232.h:
 ../Core/Inc/main.h:

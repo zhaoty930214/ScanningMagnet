@@ -8,6 +8,12 @@
 
 extern MeasureConfig_t g_measureCfg;
 
+
+/**
+ * ADC采样数据的缓存空间
+ */
+uint16_t g_adc_dma_buf[ADC_DMA_BUF_SIZE];     /* ADC1 DMA BUF */
+uint16_t g_adc3_dma_buf[ADC3_DMA_BUF_SIZE];   /* ADC3 DMA BUF */
 /*
  * 工作流处理结构体
  */
@@ -35,7 +41,7 @@ TimerHandle_t	AutoReloadTimer_Handle;
 xQueueHandle	Queue_Usart;
 xQueueHandle	Queue_Measure;
 xQueueHandle	Queue_MotorReady;
-
+xQueueHandle	Queue_Sensor_Data;
 /*
  * 软件定时器回调
  */
@@ -63,25 +69,34 @@ void tsk_init_queues(void)
 										(TimerCallbackFunction_t)AutoReloadCallback);
 
 	//创建消息队列
-	Queue_Usart = xQueueCreate(Usart_QUEUE_LENGTH, QUEUE_SIZE);
+	Queue_Usart = xQueueCreate(Usart_QUEUE_LENGTH, QUEUE_ITEM_SIZE);
 	if(Queue_Usart == NULL)
 	{
 		printf("Create Queue_Usart failed\r\n");
 	}
 
-	Queue_Measure = xQueueCreate(Measure_QUEUE_LENGTH, QUEUE_SIZE);
-
+	/* Measure任务接收所使用的队列*/
+	Queue_Measure = xQueueCreate(Measure_QUEUE_LENGTH, QUEUE_ITEM_SIZE);
 	if(Queue_Measure == NULL)
 	{
 		printf("Create Queue_Measure failed\r\n");
 	}
 
-	/*电机就位，只允许写入1个长度，X&&Y&&Z均就位时才能从PID中断里向消息队列写入*/
-	Queue_MotorReady = xQueueCreate(MotorReady_QUEUE_LENGTH, QUEUE_SIZE);
+	/* 电机就位，只允许写入1个长度，X&&Y&&Z均就位时才能从PID中断里向消息队列写入*/
+	Queue_MotorReady = xQueueCreate(MotorReady_QUEUE_LENGTH, QUEUE_ITEM_SIZE);
 	if(Queue_MotorReady == NULL)
 	{
-		printf("Create Queue_MotorReady\r\n");
+		printf("Create Queue_MotorReady failed\r\n");
 	}
+
+	/* */
+	Queue_Sensor_Data = xQueueCreate(SensorData_QUEUE_LENGTH, QUEUE_SENSOR_SIZE);
+	if(Queue_Sensor_Data == NULL)
+	{
+		printf("Create Queue_Sensor_Data failed\r\n");
+	}
+
+	printf("Create all Queue success\r\n");
 }
 
 /*初始化用户调节的目标（对应哪个环的目标）*/
@@ -265,7 +280,7 @@ void update_stepper_params(void)
 
 	printf("Estimate measuring time is %d seconds \r\n", g_measureCfg.measure_params.step_cnt_x[Axis_x]*
 														 g_measureCfg.measure_params.step_cnt_x[Axis_y]*
-														 g_measureCfg.measure_params.step_cnt_x[Axis_z]/100);
+														 g_measureCfg.measure_params.step_cnt_x[Axis_z]*0.1);
 	uint8_t buf_size = 80;
 	char *buf = (char *) malloc(buf_size);
 
@@ -302,8 +317,6 @@ void tsk_Move_Execute(void *param)
 	float p1,p2;
 	uint32_t notify_value;
 	FRESULT f_result;
-//	adc_dma_init((uint32_t)&adc_buff[0]);
-//	adc_dma_enable(ADC_BUF_LEN);
 
 	update_stepper_params();
 
@@ -434,7 +447,7 @@ void Move_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 		   g_measureCfg.measure_params.step_cnt_x[*psub_flow])
 		{
 			g_measureCfg.measure_params.x_index[*psub_flow]++;
-#if !ENABLE_UART_DRAW
+#if ACTUAL_MOVE_MOTOR
 			tsk_Move_step(*psub_flow, g_measureCfg.measure_params.pulse_cnt_x[*psub_flow]);
 #endif
 			if(*psub_flow == Sub_WorkFlow_X)
@@ -452,7 +465,6 @@ void Move_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 			SG_LOG(SEVERITY_INFO, buf);
 			g_measureCfg.measure_params.x_index[*psub_flow] = 0;
 			*psub_flow = s_workflow_table[*psub_flow];
-
 		}
 		break;
 
@@ -522,11 +534,93 @@ void Move_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 	}
 }
 
+void Get_ADC_Value(ADC_TypeDef * adcx, int channel_num, uint32_t *pbuff)
+{
+	uint32_t i;
+	float temp;
+	if(adcx == ADC_ADC1)
+	{
+		/* 清除ADC1 传输完成标志位，并启动ADC1 DMA传输. 随后阻塞，直至DMA传输完成
+		 * TO DO: 添加定时器，以免意外卡死主线程*/
+		g_adc_dma_sta = 0;
+		adc_dma_enable(ADC_DMA_BUF_SIZE);
+		while( g_adc_dma_sta != 1);
+		memset(pbuff, 0, ADC1_CH_NUM*sizeof(uint32_t));
 
-uint16_t adc_buff[ADC_BUF_LEN];
+		/* ADC的扫描模式下，规则通道中的每个通道数据按采样顺序排列在预设的缓存中，这里计
+		 * 算每个通道的累加数字量值，然后除以采样次数做平均计算。*/
+		for (int i=0; i < ADC_DMA_BUF_SIZE; i+= ADC1_CH_NUM)
+		{
+			pbuff[0] += g_adc_dma_buf[i+0];
+			pbuff[1] += g_adc_dma_buf[i+1];
+			pbuff[2] += g_adc_dma_buf[i+2];
+			pbuff[3] += g_adc_dma_buf[i+3];
+		}
+		pbuff[0] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
+		pbuff[1] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
+		pbuff[2] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
+		pbuff[3] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
+
+#if  DEBUG_MODE
+		temp = (float)pbuff[0] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc1 value is %1.4f\r\n", temp);
+
+		temp = (float)pbuff[1] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc2 value is %1.4f\r\n", temp);
+
+		temp = (float)pbuff[2] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc3 value is %1.4f\r\n", temp);
+
+		temp = (float)pbuff[3] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc4 value is %1.4f\r\n", temp);
+#endif
+
+	}
+	else if(adcx == ADC_ADC3)
+	{
+		/* 清除ADC3 传输完成标志位，并启动ADC3 DMA传输. 随后阻塞，直至DMA传输完成
+		 * TO DO: 添加定时器，以免意外卡死主线程*/
+		adc3_dma_enable(ADC3_DMA_BUF_SIZE);
+		while( g_adc3_dma_sta != 1);
+		memset(pbuff, 0, ADC3_CH_NUM*sizeof(uint32_t) );
+
+		/* ADC的扫描模式下，规则通道中的每个通道数据按采样顺序排列在预设的缓存中，这里计
+		 * 算每个通道的累加数字量值，然后除以采样次数做平均计算。*/
+		for (i = 0; i < ADC3_DMA_BUF_SIZE; i+=ADC3_CH_NUM)              /* 累加 */
+		{
+			pbuff[0] += g_adc3_dma_buf[i];
+			pbuff[1] += g_adc3_dma_buf[i+1];
+			pbuff[2] += g_adc3_dma_buf[i+2];
+		}
+
+		pbuff[0] /= ADC3_DMA_BUF_SIZE/ADC3_CH_NUM;    /* 取平均值 */
+		pbuff[1] /= ADC3_DMA_BUF_SIZE/ADC3_CH_NUM;    /* 取平均值 */
+		pbuff[2] /= ADC3_DMA_BUF_SIZE/ADC3_CH_NUM;    /* 取平均值 */
+
+#if	DEBUG_MODE
+		temp = (float)pbuff[0] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc5 value is %1.4f\r\n", temp);
+
+		temp = (float)pbuff[1] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc6 value is %1.4f\r\n", temp);
+
+		temp = (float)pbuff[2] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc7 value is %1.4f\r\n", temp);
+#endif
+	}
+}
+
 void ADC_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 {
+	uint32_t adc1x[ADC1_CH_NUM+ADC3_CH_NUM];
+	//uint32_t adc3x[ADC3_CH_NUM];
 
+	/* 获取ADC采样值*/
+	Get_ADC_Value(ADC_ADC1, ADC1_CH_NUM, &adc1x[0]);
+	Get_ADC_Value(ADC_ADC3, ADC3_CH_NUM, &adc1x[ADC1_CH_NUM]);
+
+	/*采集到的数据，用队列发送出去。Record工作流会读取该内容*/
+	xQueueSend(Queue_Sensor_Data, adc1x, 10);
 	/*ADC采样*/
 	pWorkFlow->MainFlow = Main_WorkFlow_Record;
 
@@ -534,10 +628,24 @@ void ADC_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 
 void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 {
+	BaseType_t ret;
+	uint32_t adcValue[ADC1_CH_NUM+ADC3_CH_NUM];
+	ret = xQueueReceive(Queue_Sensor_Data, adcValue, 1);
+	if(ret == pdPASS)
+		SG_LOG(SEVERITY_INFO, "Record Workflow got sensor data");
+	else
+		SG_LOG(SEVERITY_ERROR, "Record Workflow didn't got sensor data");
+
+	printf("%1.2f\t%1.2f\t%1.2f\t%1.2f\t%1.2f\t%1.2f\t%1.2f\r\n",
+			(float)adcValue[0] * (3.3/4096),
+			(float)adcValue[1] * (3.3/4096),
+			(float)adcValue[2] * (3.3/4096),
+			(float)adcValue[3] * (3.3/4096),
+			(float)adcValue[4] * (3.3/4096),
+			(float)adcValue[5] * (3.3/4096),
+			(float)adcValue[6] * (3.3/4096) );
 	/*数据记录*/
 	pWorkFlow->MainFlow = Main_WorkFlow_Move;
-
-
 }
 
 /**

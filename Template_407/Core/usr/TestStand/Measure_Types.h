@@ -148,14 +148,17 @@ typedef enum EventLogSeverity{
 	/** 表示包含对系统运行至关重要的信息的消息 */
 	SEVERITY_CRITICAL = 2,
 
+	/** 表示系统某些运行状态出现错误*/
+	SEVERITY_ERROR	  = 3,
+
 	/** 指示本条消息表示关于系统的警告 */
-    SEVERITY_WARNING  = 3,
+    SEVERITY_WARNING  = 4,
 
     /** 指示本条消息表示一个信息提醒的目的 */
-    SEVERITY_INFO     = 4,
+    SEVERITY_INFO     = 5,
 
     /** 指示本条消息只会出现在调试窗口，而不会记录到LOG文件中 */
-    SEVERITY_DEBUG    = 5
+    SEVERITY_DEBUG    = 6
 } EventLogSeverity_t;
 /**
  * 中断处理函数结构体

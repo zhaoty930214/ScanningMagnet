@@ -11,15 +11,23 @@
 #include "usbh_core.h"
 #include "usbh_msc.h"
 #include "SGLog.h"
+#include "adc.h"
 
 /**
  * 调试配置项
  */
 /**************************************/
-#define ENABLE_UART_DRAW	1
-#define ACTUAL_MOVE_MOTOR	1
-#define DEBUG_MODE
+#define ENABLE_UART_DRAW	0		//为1时使能串口打印工作路径轨迹
+#define ACTUAL_MOVE_MOTOR	0		//
+#define DEBUG_MODE			0		//为0时旁路部分调试用的代码
+
 /**************************************/
+
+
+
+extern uint16_t g_adc_dma_buf[ADC_DMA_BUF_SIZE];     /* ADC1 DMA BUF */
+extern uint16_t g_adc3_dma_buf[ADC3_DMA_BUF_SIZE];   /* ADC3 DMA BUF */
+
 
 #define MOTOR_START()    do{HAL_TIM_OC_Start_IT(&g_atimx_handle, ATIM_TIMX_PWM_CH1);	\
 							HAL_TIM_OC_Start_IT(&g_atimx_handle, ATIM_TIMX_PWM_CH2); }while(0)
@@ -35,7 +43,7 @@ extern TimerHandle_t	AutoReloadTimer_Handle;
 extern  xQueueHandle	Queue_Usart;
 extern	xQueueHandle	Queue_Measure;
 extern	xQueueHandle	Queue_MotorReady;
-
+extern	xQueueHandle	Queue_Sensor_Data;
 
 /*tsk开头的函数，表示应该在task任务代码段中调用*/
 void tsk_init_queues(void);
@@ -60,4 +68,7 @@ void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow);
 
 /* 文件访问相关*/
 FRESULT Create_Measure_file(void);
+
+/* ADC采样函数*/
+void Get_ADC_Value(ADC_TypeDef * adcx, int channel_num, uint32_t *pbuff);
 #endif

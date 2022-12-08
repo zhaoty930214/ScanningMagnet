@@ -1,3 +1,6 @@
-../Drivers/BSP/ADC/adc.c:38:6:adc_dma_init	80	static
-../Drivers/BSP/ADC/adc.c:163:6:adc_dma_enable	16	static
-../Drivers/BSP/ADC/adc.c:180:6:DMA2_Stream4_IRQHandler	4	static
+../Drivers/BSP/ADC/adc.c:47:6:adc_instance2_dma_init	72	static
+../Drivers/BSP/ADC/adc.c:134:6:adc_instance1_dma_init	80	static
+../Drivers/BSP/ADC/adc.c:238:6:adc_dma_enable	16	static
+../Drivers/BSP/ADC/adc.c:255:6:adc3_dma_enable	16	static
+../Drivers/BSP/ADC/adc.c:272:6:DMA2_Stream4_IRQHandler	4	static
+../Drivers/BSP/ADC/adc.c:287:6:DMA2_Stream0_IRQHandler	4	static

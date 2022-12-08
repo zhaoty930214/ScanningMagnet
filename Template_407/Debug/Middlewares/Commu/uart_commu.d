@@ -95,7 +95,7 @@ Middlewares/Commu/uart_commu.o: ../Middlewares/Commu/uart_commu.c \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h \
  ../Drivers/BSP/LOG/SGLog.h ../Core/usr/TestStand/Measure_Constants.h \
- ../Drivers/BSP/RTC/rtc.h
+ ../Drivers/BSP/ADC/adc.h ../Drivers/BSP/RTC/rtc.h
 ../Middlewares/Commu/uart_commu.h:
 ../Drivers/SYSTEM/sys/sys.h:
 ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h:
@@ -195,4 +195,5 @@ Middlewares/Commu/uart_commu.o: ../Middlewares/Commu/uart_commu.c \
 ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h:
 ../Drivers/BSP/LOG/SGLog.h:
 ../Core/usr/TestStand/Measure_Constants.h:
+../Drivers/BSP/ADC/adc.h:
 ../Drivers/BSP/RTC/rtc.h:

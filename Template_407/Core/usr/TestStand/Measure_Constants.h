@@ -13,8 +13,12 @@
 #define Usart_QUEUE_LENGTH		50
 #define Measure_QUEUE_LENGTH	5
 #define MotorReady_QUEUE_LENGTH	1
+#define SensorData_QUEUE_LENGTH 5
 
-#define QUEUE_SIZE				1
+
+#define QUEUE_ITEM_SIZE			1
+#define QUEUE_SENSOR_SIZE		7*sizeof(uint32_t)
+
 
 /*串口打印作图区大小*/
 #define X_Items 10

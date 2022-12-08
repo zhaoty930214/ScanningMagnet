@@ -55,39 +55,64 @@
 #define ADC_ADCX_CH3                        ADC_CHANNEL_6
 #define ADC_ADCX_CH4						ADC_CHANNEL_8
 
-#define ADC_ADC2							ADC3
+#define ADC_ADC3							ADC3
 #define ADC_ADCX_CH5						ADC_CHANNEL_5
 #define ADC_ADCX_CH6						ADC_CHANNEL_6
 #define ADC_ADCX_CH7						ADC_CHANNEL_7
 
 
-#define ADC_ADCX_CHY_CLK_ENABLE()           do{ __HAL_RCC_ADC1_CLK_ENABLE(); }while(0)              /* ADC1 时钟使能 */
+#define ADC_ADC3_CH5_GPIO_PORT				GPIOF
+#define ADC_ADC3_CH5_GPIO_PIN				GPIO_PIN_7
+#define ADC_ADC3_CH5_GPIO_CLK_ENABLE()		do{ __HAL_RCC_GPIOF_CLK_ENABLE(); }while(0)
 
-//#define ADC_NUM		3
-#define ADC1_CH_NUM                         4 		//1                                                   /* 需要转换的通道数目 */
+#define ADC_ADC3_CH6_GPIO_PORT				GPIOF
+#define ADC_ADC3_CH6_GPIO_PIN				GPIO_PIN_8
+#define ADC_ADC3_CH6_GPIO_CLK_ENABLE()		do{ __HAL_RCC_GPIOF_CLK_ENABLE(); }while(0)
+
+#define ADC_ADC3_CH7_GPIO_PORT				GPIOF
+#define ADC_ADC3_CH7_GPIO_PIN				GPIO_PIN_9
+#define ADC_ADC3_CH7_GPIO_CLK_ENABLE()		do{ __HAL_RCC_GPIOF_CLK_ENABLE(); }while(0)
+
+
+
+#define ADC_ADCX_CHY_CLK_ENABLE()           do{ __HAL_RCC_ADC1_CLK_ENABLE(); }while(0)              /* ADC1 时钟使能 */
+#define ADC3_CHY_CLK_ENABLE()				do{ __HAL_RCC_ADC3_CLK_ENABLE(); }while(0)
+
+
+ /* ADC单通道/多通道 DMA采集 DMA及通道 定义 */
 #define ADC_COLL                            1000                                                /* 单采集次数 */
 #define ADC_SUM                             ADC_CH_NUM * ADC_COLL                               /* 总采集次数 */
-#define ADC_DMA_BUF_SIZE        100         /* ADC DMA采集 BUF大小 */
+#define ADC_DMA_BUF_SIZE        			100         /* ADC DMA采集 BUF大小 */
+#define ADC3_DMA_BUF_SIZE       			75          /* ADC DMA采集 BUF大小 */
 
-/* ADC单通道/多通道 DMA采集 DMA及通道 定义 */
-#define ADC_ADCX_DMASx                      DMA2_Stream4
-#define ADC_ADCX_DMASx_Chanel               DMA_CHANNEL_0
-#define ADC_ADCX_DMASx_IRQn                 DMA2_Stream4_IRQn
-#define ADC_ADCX_DMASx_IRQHandler           DMA2_Stream4_IRQHandler
+#define ADC3_CH_NUM                         3
+#define ADC3_DMASx							DMA2_Stream0
+#define ADC_ADC3_DMASx_Chanel             	DMA_CHANNEL_2
+#define ADC_ADC3_DMASx_IRQn                 DMA2_Stream0_IRQn
+#define ADC_ADC3_DMASx_IRQHandler           DMA2_Stream0_IRQHandler
+#define ADC_ADC3_DMASx_IS_TC()              ( __HAL_DMA_GET_FLAG(&g_dma_adc3_handle, DMA_FLAG_TCIF0_4) )  /* 判断DMA2 Stream4传输完成标志, 这是一个假函数形式*/
+#define ADC_ADC3_DMASx_CLR_TC()             do{ __HAL_DMA_CLEAR_FLAG(&g_dma_adc3_handle, DMA_FLAG_TCIF0_4); }while(0)   /* 清除DMA2 Stream0传输完成标志 */
 
-#define ADC_ADCX_DMASx_IS_TC()              ( __HAL_DMA_GET_FLAG(&g_dma_adc_handle, DMA_FLAG_TCIF0_4) )  /* 判断DMA2 Stream4传输完成标志, 这是一个假函数形式,
-                                                                                                          * 不能当函数使用, 只能用在if等语句里面
-                                                                                                          */
+#define ADC1_CH_NUM                         4 		//1
+#define ADC1_DMASx                      	DMA2_Stream4
+#define ADC_ADC1_DMASx_Chanel             	DMA_CHANNEL_0
+#define ADC_ADC1_DMASx_IRQn                 DMA2_Stream4_IRQn
+#define ADC_ADC1_DMASx_IRQHandler           DMA2_Stream4_IRQHandler
+
+#define ADC_ADCX_DMASx_IS_TC()              ( __HAL_DMA_GET_FLAG(&g_dma_adc_handle, DMA_FLAG_TCIF0_4) )  /* 判断DMA2 Stream4传输完成标志, 这是一个假函数形式,*/
 #define ADC_ADCX_DMASx_CLR_TC()             do{ __HAL_DMA_CLEAR_FLAG(&g_dma_adc_handle, DMA_FLAG_TCIF0_4); }while(0)   /* 清除DMA2 Stream4传输完成标志 */
 
-#define ADC_BUF_LEN 100
 /******************************************************************************************/
 
+/* DMA传输状态标志, 0,未完成; 1, 已完成 */
 extern uint8_t g_adc_dma_sta;
+extern uint8_t g_adc3_dma_sta;
 
-void adc_dma_init(uint32_t mar);
-void adc_nch_dma_init(void);                                                                    /* ADC DMA采集初始化 */
-void adc_dma_enable( uint16_t cndtr);                                                               /* 使能一次ADC DMA采集传输 */
+void adc_instance1_dma_init(uint32_t mar);
+void adc_instance2_dma_init(uint32_t mar);
+void adc_nch_dma_init(void);           /* ADC DMA采集初始化 */
+void adc_dma_enable( uint16_t cndtr);  /* 使能一次ADC DMA采集传输 */
+void adc3_dma_enable( uint16_t cndtr);  /* 使能一次ADC DMA采集传输 */
 //
 
 #endif 

@@ -23,7 +23,7 @@
 #include "photoelectric_switch.h"
 #include "usbh_core.h"
 #include "usbh_msc.h"
-#include "adc.h"
+
 
 //#include "SGLog.h"
 
@@ -42,6 +42,8 @@ TaskHandle_t	Statistic_Handle_t;
 TaskHandle_t 	HeartBeat_Handle_t;
 TaskHandle_t	Usart_Handle_t;
 TaskHandle_t	Measure_Handle_t;
+
+
 
 void AutoReloadCallback(TimerHandle_t xTimer);
 
@@ -84,9 +86,6 @@ void Statistic_task(void *arg)
 }
 
 
-
-extern uint8_t g_adc_dma_sta;               /* DMA传输状态标志, 0,未完成; 1, 已完成 */
-uint16_t g_adc_dma_buf[ADC_DMA_BUF_SIZE];   /* ADC DMA BUF */
 /**
  * 心跳任务，LED周期闪烁，指示系统运行状态
  */
@@ -247,7 +246,8 @@ void Measure_task(void *arg)
 
 	printf("Start Measuring Task\r\n");
 
-	adc_dma_init((uint32_t)&g_adc_dma_buf);                     	/* ADC DMA初始化 */
+	adc_instance1_dma_init((uint32_t)&g_adc_dma_buf);                     	/* ADC DMA初始化 */
+	adc_instance2_dma_init((uint32_t)&g_adc3_dma_buf);
 
 	for(;;)
 	{
@@ -270,47 +270,16 @@ void Measure_task(void *arg)
 
 			case STOP_MEASURE:
             	SG_LOG(SEVERITY_INFO, "Got STOP Measure Command");
+#if DEBUG_MODE
             	{
-            		uint32_t i;
-            		float temp;
-            		uint32_t sum[ADC1_CH_NUM], adcx[ADC1_CH_NUM];
+					uint32_t adc1x[ADC1_CH_NUM];
+					uint32_t adc3x[ADC3_CH_NUM];
 
-            		g_adc_dma_sta = 0;
-            		adc_dma_enable(ADC_DMA_BUF_SIZE);
-
-        	        while( g_adc_dma_sta != 1);
-        	        {
-        	            /* 计算DMA 采集到的ADC数据的平均值 */
-        	        	memset(sum, 0, ADC1_CH_NUM*sizeof(uint32_t) );
-        	            for (i = 0; i < ADC_DMA_BUF_SIZE; i+=ADC1_CH_NUM)              /* 累加 */
-        	            {
-        	                sum[0] += g_adc_dma_buf[i];
-        	                sum[1] += g_adc_dma_buf[i+1];
-        	                sum[2] += g_adc_dma_buf[i+2];
-        	                sum[3] += g_adc_dma_buf[i+3];
-        	            }
-
-        	            adcx[0] = sum[0] / 25;                      /* 取平均值 */
-        	            adcx[1] = sum[1] / 25;                      /* 取平均值 */
-        	            adcx[2] = sum[2] / 25;                      /* 取平均值 */
-        	            adcx[3] = sum[3] / 25;                      /* 取平均值 */
-
-        	            temp = (float)adcx[0] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
-        	            printf("adc1 value is %1.4f\r\n", temp);
-
-        	            temp = (float)adcx[1] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
-        	            printf("adc2 value is %1.4f\r\n", temp);
-
-        	            temp = (float)adcx[2] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
-        	            printf("adc3 value is %1.4f\r\n", temp);
-
-        	            temp = (float)adcx[3] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
-        	            printf("adc4 value is %1.4f\r\n", temp);
-
-        	            g_adc_dma_sta = 0;                                  /* 清除DMA采集完成状态标志 */
-        	            adc_dma_enable(ADC_DMA_BUF_SIZE);                   /* 启动下一次ADC DMA采集 */
-        	        }
+					/* 获取ADC采样值*/
+					Get_ADC_Value(ADC_ADC1, ADC1_CH_NUM, adc1x);
+					Get_ADC_Value(ADC_ADC3, ADC3_CH_NUM, adc3x);
             	}
+#endif
 				break;
 
 			case DEBUG_MOVE:

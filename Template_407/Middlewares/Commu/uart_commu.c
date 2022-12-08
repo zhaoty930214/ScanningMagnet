@@ -159,7 +159,7 @@ float bytes2float(__IO uint8_t *pdata1)
 
 
 
-extern const Uart_Struct_t g_uart_handle_struct[5];
+extern const Uart_Struct_t g_uart_handle_struct[6];
 
 
 

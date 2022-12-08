@@ -30,12 +30,108 @@ DMA_HandleTypeDef g_dma_adc_handle = {0};                                   /* ¶
 ADC_HandleTypeDef g_adc_dma_handle = {0};                                   /* ¶¨ÒåADC£¨DMA¶ÁÈ¡£©¾ä±ú */
 uint8_t g_adc_dma_sta = 0;                                                  /* DMA´«Êä×´Ì¬±êÖ¾, 0,Î´Íê³É; 1, ÒÑÍê³É */
 
+uint8_t g_adc3_dma_sta = 0;
+DMA_HandleTypeDef g_dma_adc3_handle = {0};
+ADC_HandleTypeDef g_adc3_dma_handle = {0};                                   /* ¶¨ÒåADC£¨DMA¶ÁÈ¡£©¾ä±ú */
+
 /**
- * @brief       ADC DMA¶ÁÈ¡ ³õÊ¼»¯º¯Êý
- * @param       mar         : ´æ´¢Æ÷µØÖ·
+ * @brief       ADC ÊµÀý¶ÔÏó2 DMA¶ÁÈ¡ ³õÊ¼»¯º¯Êý.Ê¹ÄÜ¶àÍ¨µÀÁ¬Ðø²ÉÑùÄ£Ê½+É¨ÃèÄ£Ê½+DMA´«ÊäÄ£Ê½ÏîÄ¿ÖÐÒ»¹²Ê¹ÓÃ7¸öADCÍ¨µÀ£¬ÆäÖÐ4¸öÀ´×ÔADC
+ * 				ÊµÀý1(ADC1),3¸öÀ´×ÔADCÊµÀý2(ADC3)¡£ADC1Ê¹ÓÃDMA2_Stream4/ADC3Ê¹ÓÃDMA2_Stream0£¬¾ßÌå²Î¿¼https://mevi
+ * 				on.atlassian.net/wiki/spaces/YBL/pages/59506920/ADC1+ADC3+DMA
+ * @param       mar: ´æ´¢Æ÷µØÖ·£¬¼´´ÓADCÍâÉè¶Á»ØµÄÊý¾ÝÒª´æ´¢µ½µÄ»º´æµÄÆðÊ¼µØÖ·
  * @retval      ÎÞ
+ * @Version		×÷Õß							ÈÕÆÚ				ÐÞ¸ÄÄ¿µÄ
+ * 1.0			tianyu.zhao@mevion.com		2022-11-16		³õ°æ
+ * 1.1			tianyu.zhao@mevion.com		2022-11-07		https://mevion.atlassian.net/browse/YBL-948
  */
-void adc_dma_init(uint32_t mar)
+void adc_instance2_dma_init(uint32_t mar)
+{
+	GPIO_InitTypeDef gpio_init_struct;
+	ADC_ChannelConfTypeDef adc_ch_conf = {0};
+
+	ADC3_CHY_CLK_ENABLE();
+	ADC_ADC3_CH5_GPIO_CLK_ENABLE();
+	ADC_ADC3_CH6_GPIO_CLK_ENABLE();
+	ADC_ADC3_CH7_GPIO_CLK_ENABLE();
+    __HAL_RCC_DMA2_CLK_ENABLE();                                        /* DMA2Ê±ÖÓÊ¹ÄÜ */
+
+    gpio_init_struct.Pin = ADC_ADC3_CH5_GPIO_PIN;
+    gpio_init_struct.Mode = GPIO_MODE_ANALOG;
+	gpio_init_struct.Pull = GPIO_PULLUP;
+	HAL_GPIO_Init(ADC_ADC3_CH5_GPIO_PORT, &gpio_init_struct);
+
+	gpio_init_struct.Pin = ADC_ADC3_CH6_GPIO_PIN;
+	HAL_GPIO_Init(ADC_ADC3_CH6_GPIO_PORT, &gpio_init_struct);
+
+	gpio_init_struct.Pin = ADC_ADC3_CH7_GPIO_PIN;
+	HAL_GPIO_Init(ADC_ADC3_CH7_GPIO_PORT, &gpio_init_struct);
+
+	/* ³õÊ¼»¯DMA */
+	g_dma_adc3_handle.Instance = 				 	ADC3_DMASx;
+	g_dma_adc3_handle.Init.Channel = 				ADC_ADC3_DMASx_Chanel;                /* ÉèÖÃDMAÍ¨µÀ */
+	g_dma_adc3_handle.Init.Direction = 				DMA_PERIPH_TO_MEMORY;                 /* ´ÓÍâÉèµ½´æ´¢Æ÷Ä£Ê½ */
+	g_dma_adc3_handle.Init.PeriphInc = 				DMA_PINC_DISABLE;                     /* ÍâÉè·ÇÔöÁ¿Ä£Ê½ */
+	g_dma_adc3_handle.Init.MemInc = 				DMA_MINC_ENABLE;                      /* ´æ´¢Æ÷ÔöÁ¿Ä£Ê½ */
+    g_dma_adc3_handle.Init.PeriphDataAlignment = 	DMA_PDATAALIGN_HALFWORD;    		  /* ÍâÉèÊý¾Ý³¤¶È:16Î» */
+    g_dma_adc3_handle.Init.MemDataAlignment = 		DMA_MDATAALIGN_HALFWORD;       		  /* ´æ´¢Æ÷Êý¾Ý³¤¶È:16Î» */
+    g_dma_adc3_handle.Init.Mode = 					DMA_NORMAL;                           /* ÍâÉèÁ÷¿ØÄ£Ê½ */
+    g_dma_adc3_handle.Init.Priority =		 		DMA_PRIORITY_MEDIUM;                  /* ÖÐµÈÓÅÏÈ¼¶ */
+    HAL_DMA_Init(&g_dma_adc3_handle);
+
+
+    g_adc3_dma_handle.Instance = 					ADC_ADC3;
+    g_adc3_dma_handle.Init.ClockPrescaler = 		ADC_CLOCKPRESCALER_PCLK_DIV4;    	  /* 4·ÖÆµ£¬21Mhz */
+    g_adc3_dma_handle.Init.Resolution = 			ADC_RESOLUTION_12B;                   /* 12Î»Ä£Ê½ */
+    g_adc3_dma_handle.Init.DataAlign = 				ADC_DATAALIGN_RIGHT;                  /* ÓÒ¶ÔÆë */
+    g_adc3_dma_handle.Init.ScanConvMode = 			ENABLE;                            	  /* ·ÇÉ¨ÃèÄ£Ê½ */
+    g_adc3_dma_handle.Init.ContinuousConvMode =	 	ENABLE;                      		  /* ¿ªÆôÁ¬Ðø×ª»» */
+    g_adc3_dma_handle.Init.NbrOfConversion = 		3;                    				  /* ±¾ÊµÑéÓÃµ½3¸ö¹æÔòÍ¨µÀÐòÁÐ */
+    g_adc3_dma_handle.Init.DiscontinuousConvMode = 	DISABLE;                  			  /* ½ûÖ¹²»Á¬Ðø²ÉÑùÄ£Ê½ */
+    g_adc3_dma_handle.Init.NbrOfDiscConversion = 	0;                          		  /* ²»Á¬Ðø²ÉÑùÍ¨µÀÊýÎª0 */
+    g_adc3_dma_handle.Init.ExternalTrigConv = 		ADC_SOFTWARE_START;            		  /* Èí¼þ´¥·¢ */
+    g_adc3_dma_handle.Init.DMAContinuousRequests = 	ENABLE;                   			  /* ¿ªÆôDMAÇëÇó */
+    HAL_ADC_Init(&g_adc3_dma_handle);                                        			  /* ³õÊ¼»¯ADC */
+
+    __HAL_LINKDMA(&g_adc3_dma_handle, DMA_Handle, g_dma_adc3_handle);         			  /* °ÑADCºÍDMAÁ¬½ÓÆðÀ´ */
+
+    /* *************ÅäÖÃADCÍ¨µÀ, Ç°ËÄ¸öÍ¨µÀÊÇÍâÉèADC1µÄÍ¨µÀ£»ºóÈý¸öÍ¨µÀÊÇÍâÉèADC3µÄÍ¨µÀ**************** */
+    adc_ch_conf.Channel = ADC_ADCX_CH5;                                     /* Í¨µÀ */
+    adc_ch_conf.Rank = 1;                                                   /* ÐòÁÐ */
+    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* ²ÉÑùÊ±¼ä */
+    HAL_ADC_ConfigChannel(&g_adc3_dma_handle, &adc_ch_conf);                /* Í¨µÀÅäÖÃ */
+
+    adc_ch_conf.Channel = ADC_ADCX_CH6;                                     /* Í¨µÀ */
+    adc_ch_conf.Rank = 2;                                                   /* ÐòÁÐ */
+    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* ²ÉÑùÊ±¼ä */
+    HAL_ADC_ConfigChannel(&g_adc3_dma_handle, &adc_ch_conf);                /* Í¨µÀÅäÖÃ */
+
+    adc_ch_conf.Channel = ADC_ADCX_CH7;                                     /* Í¨µÀ */
+    adc_ch_conf.Rank = 3;                                                   /* ÐòÁÐ */
+    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* ²ÉÑùÊ±¼ä */
+    HAL_ADC_ConfigChannel(&g_adc3_dma_handle, &adc_ch_conf);                /* Í¨µÀÅäÖÃ */
+
+    /* *************ÅäÖÃADCÍ¨µÀ, Ç°ËÄ¸öÍ¨µÀÊÇÍâÉèADC1µÄÍ¨µÀ£»ºóÈý¸öÍ¨µÀÊÇÍâÉèADC3µÄÍ¨µÀ**************** */
+
+
+    /* ÅäÖÃDMAÊý¾ÝÁ÷ÇëÇóÖÐ¶ÏÓÅÏÈ¼¶ */
+    HAL_NVIC_SetPriority(ADC_ADC3_DMASx_IRQn, 3, 4);
+    HAL_NVIC_EnableIRQ(ADC_ADC3_DMASx_IRQn);
+
+    HAL_DMA_Start_IT(&g_dma_adc3_handle, (uint32_t)&ADC3->DR, mar, 0);       /* Æô¶¯DMA£¬²¢¿ªÆôÖÐ¶Ï */
+    HAL_ADC_Start_DMA(&g_adc3_dma_handle,&mar,0);
+}
+
+/**
+ * @brief       ADC ÊµÀý¶ÔÏó1 DMA¶ÁÈ¡ ³õÊ¼»¯º¯Êý.Ê¹ÄÜ¶àÍ¨µÀÁ¬Ðø²ÉÑùÄ£Ê½+É¨ÃèÄ£Ê½+DMA´«ÊäÄ£Ê½ÏîÄ¿ÖÐÒ»¹²Ê¹ÓÃ7¸öADCÍ¨µÀ£¬ÆäÖÐ4¸öÀ´×ÔADC
+ * 				ÊµÀý1(ADC1),3¸öÀ´×ÔADCÊµÀý2(ADC3)¡£ADC1Ê¹ÓÃDMA2_Stream4/ADC3Ê¹ÓÃDMA2_Stream0£¬¾ßÌå²Î¿¼https://mevi
+ * 				on.atlassian.net/wiki/spaces/YBL/pages/59506920/ADC1+ADC3+DMA
+ * @param       mar: ´æ´¢Æ÷µØÖ·£¬¼´´ÓADCÍâÉè¶Á»ØµÄÊý¾ÝÒª´æ´¢µ½µÄ»º´æµÄÆðÊ¼µØÖ·
+ * @retval      ÎÞ
+ * @Version		×÷Õß							ÈÕÆÚ				ÐÞ¸ÄÄ¿µÄ
+ * 1.0			tianyu.zhao@mevion.com		2022-11-16		³õ°æ
+ * 1.1			tianyu.zhao@mevion.com		2022-11-07		https://mevion.atlassian.net/browse/YBL-948
+ */
+void adc_instance1_dma_init(uint32_t mar)
 {
     GPIO_InitTypeDef gpio_init_struct;
     ADC_ChannelConfTypeDef adc_ch_conf = {0};
@@ -46,7 +142,7 @@ void adc_dma_init(uint32_t mar)
     ADC_ADCX_CH3_GPIO_CLK_ENABLE();                                         /* ¿ªÆôGPIOÊ±ÖÓ */
     ADC_ADCX_CH4_GPIO_CLK_ENABLE();                                         /* ¿ªÆôGPIOÊ±ÖÓ */
 
-    if ((uint32_t)ADC_ADCX_DMASx > (uint32_t)DMA2)                          /* ´óÓÚDMA2µÄ»ùµØÖ·, ÔòÎªDMA2µÄÊý¾ÝÁ÷Í¨µÀÁË */
+    if ((uint32_t)ADC1_DMASx > (uint32_t)DMA2)                          /* ´óÓÚDMA2µÄ»ùµØÖ·, ÔòÎªDMA2µÄÊý¾ÝÁ÷Í¨µÀÁË */
     {
         __HAL_RCC_DMA2_CLK_ENABLE();                                        /* DMA2Ê±ÖÓÊ¹ÄÜ */
     }
@@ -63,25 +159,19 @@ void adc_dma_init(uint32_t mar)
 
     /* ÉèÖÃAD²É¼¯Í¨µÀ¶ÔÓ¦IOÒý½Å¹¤×÷Ä£Ê½ */
     gpio_init_struct.Pin = ADC_ADCX_CH2_GPIO_PIN;
-    gpio_init_struct.Mode = GPIO_MODE_ANALOG;
-    gpio_init_struct.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(ADC_ADCX_CH2_GPIO_PORT, &gpio_init_struct);
 
     /* ÉèÖÃAD²É¼¯Í¨µÀ¶ÔÓ¦IOÒý½Å¹¤×÷Ä£Ê½ */
     gpio_init_struct.Pin = ADC_ADCX_CH3_GPIO_PIN;
-    gpio_init_struct.Mode = GPIO_MODE_ANALOG;
-    gpio_init_struct.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(ADC_ADCX_CH3_GPIO_PORT, &gpio_init_struct);
 
     /* ÉèÖÃAD²É¼¯Í¨µÀ¶ÔÓ¦IOÒý½Å¹¤×÷Ä£Ê½ */
     gpio_init_struct.Pin = ADC_ADCX_CH4_GPIO_PIN;
-    gpio_init_struct.Mode = GPIO_MODE_ANALOG;
-    gpio_init_struct.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(ADC_ADCX_CH4_GPIO_PORT, &gpio_init_struct);
 
 
     /* ³õÊ¼»¯DMA */
-    g_dma_adc_handle.Instance = ADC_ADCX_DMASx;                             /* ÉèÖÃDMAÊý¾ÝÁ÷ */
+    g_dma_adc_handle.Instance = ADC1_DMASx;                             /* ÉèÖÃDMAÊý¾ÝÁ÷ */
     g_dma_adc_handle.Init.Channel = DMA_CHANNEL_0;                          /* ÉèÖÃDMAÍ¨µÀ */
     g_dma_adc_handle.Init.Direction = DMA_PERIPH_TO_MEMORY;                 /* ´ÓÍâÉèµ½´æ´¢Æ÷Ä£Ê½ */
     g_dma_adc_handle.Init.PeriphInc = DMA_PINC_DISABLE;                     /* ÍâÉè·ÇÔöÁ¿Ä£Ê½ */
@@ -96,9 +186,9 @@ void adc_dma_init(uint32_t mar)
     g_adc_dma_handle.Init.ClockPrescaler = ADC_CLOCKPRESCALER_PCLK_DIV4;    /* 4·ÖÆµ£¬21Mhz */
     g_adc_dma_handle.Init.Resolution = ADC_RESOLUTION_12B;                  /* 12Î»Ä£Ê½ */
     g_adc_dma_handle.Init.DataAlign = ADC_DATAALIGN_RIGHT;                  /* ÓÒ¶ÔÆë */
-    g_adc_dma_handle.Init.ScanConvMode = ENABLE;                           /* ·ÇÉ¨ÃèÄ£Ê½ */
+    g_adc_dma_handle.Init.ScanConvMode = ENABLE;                            /* É¨ÃèÄ£Ê½ */
     g_adc_dma_handle.Init.ContinuousConvMode = ENABLE;                      /* ¿ªÆôÁ¬Ðø×ª»» */
-    g_adc_dma_handle.Init.NbrOfConversion = ADC1_CH_NUM;                              /* ±¾ÊµÑéÓÃµ½1¸ö¹æÔòÍ¨µÀÐòÁÐ */
+    g_adc_dma_handle.Init.NbrOfConversion = ADC1_CH_NUM;                    /* ±¾ÊµÑéÓÃµ½1¸ö¹æÔòÍ¨µÀÐòÁÐ */
     g_adc_dma_handle.Init.DiscontinuousConvMode = DISABLE;                  /* ½ûÖ¹²»Á¬Ðø²ÉÑùÄ£Ê½ */
     g_adc_dma_handle.Init.NbrOfDiscConversion = 0;                          /* ²»Á¬Ðø²ÉÑùÍ¨µÀÊýÎª0 */
     g_adc_dma_handle.Init.ExternalTrigConv = ADC_SOFTWARE_START;            /* Èí¼þ´¥·¢ */
@@ -130,30 +220,15 @@ void adc_dma_init(uint32_t mar)
     HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* Í¨µÀÅäÖÃ */
     /* *************ÅäÖÃADCÍ¨µÀ, Ç°ËÄ¸öÍ¨µÀÊÇÍâÉèADC1µÄÍ¨µÀ£»ºóÈý¸öÍ¨µÀÊÇÍâÉèADC3µÄÍ¨µÀ**************** */
 
-
-//    adc_ch_conf.Channel = ADC_ADCX_CH3;                                     /* Í¨µÀ */
-//    adc_ch_conf.Rank = 2;                                                   /* ÐòÁÐ */
-//    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* ²ÉÑùÊ±¼ä */
-//    HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* Í¨µÀÅäÖÃ */
-//
-//    adc_ch_conf.Channel = ADC_ADCX_CH6;                                     /* Í¨µÀ */
-//    adc_ch_conf.Rank = 3;                                                   /* ÐòÁÐ */
-//    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* ²ÉÑùÊ±¼ä */
-//    HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* Í¨µÀÅäÖÃ */
-//
-//    adc_ch_conf.Channel = ADC_ADCX_CH6;                                     /* Í¨µÀ */
-//    adc_ch_conf.Rank = 3;                                                   /* ÐòÁÐ */
-//    adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* ²ÉÑùÊ±¼ä */
-//    HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* Í¨µÀÅäÖÃ */
-
-
     /* ÅäÖÃDMAÊý¾ÝÁ÷ÇëÇóÖÐ¶ÏÓÅÏÈ¼¶ */
-    HAL_NVIC_SetPriority(ADC_ADCX_DMASx_IRQn, 3, 3);
-    HAL_NVIC_EnableIRQ(ADC_ADCX_DMASx_IRQn);
+    HAL_NVIC_SetPriority(ADC_ADC1_DMASx_IRQn, 3, 3);
+    HAL_NVIC_EnableIRQ(ADC_ADC1_DMASx_IRQn);
 
     HAL_DMA_Start_IT(&g_dma_adc_handle, (uint32_t)&ADC1->DR, mar, 0);       /* Æô¶¯DMA£¬²¢¿ªÆôÖÐ¶Ï */
     HAL_ADC_Start_DMA(&g_adc_dma_handle,&mar,0);                            /* ¿ªÆôADC£¬Í¨¹ýDMA´«Êä½á¹û */
 }
+
+
 
 /**
  * @brief       Ê¹ÄÜÒ»´ÎADC DMA´«Êä
@@ -173,11 +248,28 @@ void adc_dma_enable(uint16_t cndtr)
 }
 
 /**
+ * @brief       Ê¹ÄÜÒ»´ÎADC DMA´«Êä
+ * @param       cndtr: DMA´«ÊäµÄ´ÎÊý
+ * @retval      ÎÞ
+ */
+void adc3_dma_enable(uint16_t cndtr)
+{
+    __HAL_ADC_DISABLE(&g_adc3_dma_handle);           /* ÏÈ¹Ø±ÕADC */
+
+    __HAL_DMA_DISABLE(&g_dma_adc3_handle);           /* ¹Ø±ÕDMA´«Êä */
+    g_dma_adc3_handle.Instance->NDTR = cndtr;        /* ÖØÉèDMA´«ÊäÊý¾ÝÁ¿ */
+    __HAL_DMA_ENABLE(&g_dma_adc3_handle);            /* ¿ªÆôDMA´«Êä */
+
+    __HAL_ADC_ENABLE(&g_adc3_dma_handle);            /* ÖØÐÂÆô¶¯ADC */
+    ADC_ADC3->CR2 |= 1 << 30;                       /* Æô¶¯¹æÔò×ª»»Í¨µÀ */
+}
+
+/**
  * @brief       ADC DMA²É¼¯ÖÐ¶Ï·þÎñº¯Êý
  * @param       ÎÞ
  * @retval      ÎÞ
  */
-void ADC_ADCX_DMASx_IRQHandler(void)
+void ADC_ADC1_DMASx_IRQHandler(void)
 {
     if (ADC_ADCX_DMASx_IS_TC())
     {
@@ -187,6 +279,19 @@ void ADC_ADCX_DMASx_IRQHandler(void)
 }
 
 
+/**
+ * @brief       ADC DMA²É¼¯ÖÐ¶Ï·þÎñº¯Êý
+ * @param       ÎÞ
+ * @retval      ÎÞ
+ */
+void ADC_ADC3_DMASx_IRQHandler(void)
+{
+    if (ADC_ADC3_DMASx_IS_TC())
+    {
+        g_adc3_dma_sta = 1;                          /* ±ê¼ÇDMA´«ÊäÍê³É */
+        ADC_ADC3_DMASx_CLR_TC();                    /* Çå³ýDMA2 Êý¾ÝÁ÷4 ´«ÊäÍê³ÉÖÐ¶Ï */
+    }
+}
 
 
 

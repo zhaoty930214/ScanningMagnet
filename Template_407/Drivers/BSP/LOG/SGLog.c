@@ -29,11 +29,12 @@ void log_init(void)
 }
 
 
-char *log_title[6]=
+char *log_title[7]=
 {
 	"INVALID",
     "FATAL",
 	"CRITICAL",
+	"ERROR",
 	"WARNING",
 	"INFO",
 	"DEBUG"
@@ -67,26 +68,40 @@ void close_log_file(void)
 	f_close(s_pfile);
 }
 
+
+//从文件件路径中获取文件名
+void GetFileName(char *path,char *filename)
+{
+    char     *ptr = NULL;
+    ptr = strrchr(path,'/');
+    if (!ptr)
+        return;
+    memcpy(filename,ptr+1,strlen(ptr+1));
+    strcat(filename, "\0");
+}
+
+
 void get_time_string(char *buff)
 {
 	uint8_t year, month, date, week;
 	uint8_t hour, min, sec, ampm=0;
 	rtc_get_time(&hour, &min, &sec, &ampm);
 	rtc_get_date(&year, &month, &date, &week);
-
+#if DEBUG_MODE
 	printf("get_time_string:%04d-%02d-%02d %02d:%02d:%02d\r\n",
 			year+2000, month, date, hour, min, sec);
-
+#endif
 	sprintf(buff,  "%04d-%02d-%02d %02d:%02d:%02d",
 			year+2000, month, date, hour, min, sec);
 }
 
 void logMessage(
 			EventLogSeverity_t severity,
-			char *file_name,
+			char *file_path,
 			uint16_t code_line,
 			char *inputStream)
 {
+
 	if(!s_isInitialized)
 	{
 		log_init();
@@ -99,9 +114,12 @@ void logMessage(
 	get_time_string(time_buff);
 	get_time_string(time_buff);
 
-	sprintf(log_buff,  "[%s][%s]", log_title[severity], time_buff);
-	sprintf(log_buff,  "%s[%s][%d]", log_buff, file_name, code_line);
-	sprintf(log_buff, "%s[%s]\r\n", log_buff, inputStream);
+	char file_name_buf[50];
+	GetFileName(file_path, file_name_buf);
+
+	snprintf(log_buff, 200, "[%s][%s]", log_title[severity], time_buff);
+	snprintf(log_buff, 200,  "%s[%s][%d]", log_buff, file_name_buf, code_line);
+	snprintf(log_buff, 200,  "%s[%s]\r\n", log_buff, inputStream);
 
 	open_log_file();
 
@@ -114,5 +132,5 @@ void logMessage(
 
 	close_log_file();
 
-	printf("%s\r\n", inputStream);
+	printf("%s\r\n", log_buff);
 }

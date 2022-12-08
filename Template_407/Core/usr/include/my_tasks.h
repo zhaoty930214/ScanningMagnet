@@ -13,6 +13,7 @@
 #include "queue.h"		//使用消息队列支持
 #include "SGLog.h"
 #include "Measure_Types.h"
+#include "adc.h"
 
 
 
@@ -45,7 +46,6 @@
 #define USB_Proc_Task_Prio	5
 
 extern MeasureConfig_t g_measureCfg;
-extern xQueueHandle	Queue_MotorReady;
 
 void start_task(void *pvParameter);
 

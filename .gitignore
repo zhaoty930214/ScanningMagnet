@@ -4,5 +4,8 @@
 *.d
 *.su
 *.su
-//commit 1715
-//commit 2022/12/07
+*.mk
+Template_407/Debug/Template_407.elf
+*.elf
+*.d
+*.d

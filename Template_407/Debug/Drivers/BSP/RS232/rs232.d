@@ -106,7 +106,7 @@ Drivers/BSP/RS232/rs232.o: ../Drivers/BSP/RS232/rs232.c \
  ../Middlewares/USB_CLASS/Inc/usbh_msc.h \
  ../Middlewares/USB_CLASS/Inc/usbh_msc_bot.h \
  ../Middlewares/USB_CLASS/Inc/usbh_msc_scsi.h ../Drivers/BSP/LOG/SGLog.h \
- ../Core/usr/TestStand/Measure_Constants.h \
+ ../Core/usr/TestStand/Measure_Constants.h ../Drivers/BSP/ADC/adc.h \
  ../Drivers/SYSTEM/usart/my_usart.h ../Drivers/BSP/LED/LED.h
 ../Drivers/BSP/RS232/rs232.h:
 ../Drivers/SYSTEM/sys/sys.h:
@@ -222,5 +222,6 @@ Drivers/BSP/RS232/rs232.o: ../Drivers/BSP/RS232/rs232.c \
 ../Middlewares/USB_CLASS/Inc/usbh_msc_scsi.h:
 ../Drivers/BSP/LOG/SGLog.h:
 ../Core/usr/TestStand/Measure_Constants.h:
+../Drivers/BSP/ADC/adc.h:
 ../Drivers/SYSTEM/usart/my_usart.h:
 ../Drivers/BSP/LED/LED.h:
