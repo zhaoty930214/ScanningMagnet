@@ -26,6 +26,7 @@
 #include "sys.h"
 #include "ff.h"
 #include "rtc.h"
+#include "malloc.h"
 
 /**
  * @brief       获得时间
@@ -42,8 +43,8 @@ DWORD get_fattime (void)
 	uint8_t year, month, date, week;
     rtc_get_date(&year, &month, &date, &week);
 
-	uint8_t hour, min, sec, ampm;
-	rtc_get_time(&hour, &min, &sec, &ampm);
+	uint8_t hour, min, sec, milisec, ampm;
+	rtc_get_time(&hour, &min, &sec, &milisec, &ampm);
 
 	ret = (year+20)<<25 |
 		  (month<<21)	|

@@ -239,8 +239,8 @@ void time_parse_handler(void *arg, uint8_t index)
     rtc_get_date(&year, &month, &date, &week);
     printf("Date:20%02d-%02d-%02d\r\n", year, month, date);
 
-	volatile uint8_t hour, min, sec, ampm;
-	rtc_get_time(&hour, &min, &sec, &ampm);
+	volatile uint8_t hour, min, sec, milisec,  ampm;
+	rtc_get_time(&hour, &min, &sec, &milisec, &ampm);
 	printf("Time:%02d:%02d:%02d\r\n", hour, min, sec);
 }
 

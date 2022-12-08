@@ -98,18 +98,21 @@ HAL_StatusTypeDef rtc_set_date(uint8_t year, uint8_t month, uint8_t date, uint8_
  * @param       *ampm           : AM/PM,0=AM/24H,1=PM.
  * @retval      无
  */
-void rtc_get_time(uint8_t *hour, uint8_t *min, uint8_t *sec, uint8_t *ampm)
+void rtc_get_time(uint8_t *hour, uint8_t *min, uint8_t *sec, uint16_t*milisec, uint8_t *ampm)
 {
     RTC_TimeTypeDef rtc_time_handle;
-
+    rtc_time_handle.SecondFraction = 999;
     HAL_RTC_GetTime(&g_rtc_handle, &rtc_time_handle, RTC_FORMAT_BIN);
 
-    *hour = rtc_time_handle.Hours;
-    *min = rtc_time_handle.Minutes;
-    *sec = rtc_time_handle.Seconds;
-    *ampm = rtc_time_handle.TimeFormat;
-
-    //printf("Output time min and second is %d:%d\r\n", *min, *sec);
+    *hour 	 = rtc_time_handle.Hours;
+    *min 	 = rtc_time_handle.Minutes;
+    *sec 	 = rtc_time_handle.Seconds;
+    *milisec = (0x3FF-rtc_time_handle.SubSeconds)*1000/(0x3FF+1);
+    *ampm 	 = rtc_time_handle.TimeFormat;
+    /* *调试RTC毫秒级精度*/
+#if DEBUG_MODE
+    printf("Output time min and second is %d:%d:%d\r\n", *min, *sec, sub_sec);
+#endif
 }
 
 /**
@@ -182,8 +185,8 @@ uint8_t rtc_init(void)
     uint16_t bkpflag = 0;
     g_rtc_handle.Instance = RTC;
     g_rtc_handle.Init.HourFormat = RTC_HOURFORMAT_24;   /* RTC设置为24小时格式 */
-    g_rtc_handle.Init.AsynchPrediv = 0x7F;              /* RTC异步分频系数(1~0x7F) */
-    g_rtc_handle.Init.SynchPrediv = 0xFF;               /* RTC同步分频系数(0~0x7FFF) */
+    g_rtc_handle.Init.AsynchPrediv = 0x1f;//0x7F;              /* RTC异步分频系数(1~0x7F) */
+    g_rtc_handle.Init.SynchPrediv = 0x3ff;//0xFF;               /* RTC同步分频系数(0~0x7FFF) */
     g_rtc_handle.Init.OutPut = RTC_OUTPUT_DISABLE;
     g_rtc_handle.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
     g_rtc_handle.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;

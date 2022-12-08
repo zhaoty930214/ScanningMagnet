@@ -488,8 +488,8 @@ uint8_t mf_puts(uint8_t *str)
 void time_string(char *s, uint8_t size)
 {
 	uint8_t year, month, date, week;
-	uint8_t hour, min, sec, ampm=0;
-	rtc_get_time(&hour, &min, &sec, &ampm);
+	uint8_t hour, min, sec, milisec, ampm=0;
+	rtc_get_time(&hour, &min, &sec, &milisec, &ampm);
 	rtc_get_date(&year, &month, &date, &week);
 
 	/*rtc外设返回的年份是从2000年开始，FATFS文件系统是1980*/

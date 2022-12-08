@@ -280,7 +280,7 @@ void update_stepper_params(void)
 
 	printf("Estimate measuring time is %d seconds \r\n", g_measureCfg.measure_params.step_cnt_x[Axis_x]*
 														 g_measureCfg.measure_params.step_cnt_x[Axis_y]*
-														 g_measureCfg.measure_params.step_cnt_x[Axis_z]*0.1);
+														 g_measureCfg.measure_params.step_cnt_x[Axis_z]/100);
 	uint8_t buf_size = 80;
 	char *buf = (char *) malloc(buf_size);
 
@@ -610,6 +610,7 @@ void Get_ADC_Value(ADC_TypeDef * adcx, int channel_num, uint32_t *pbuff)
 	}
 }
 
+
 void ADC_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 {
 	uint32_t adc1x[ADC1_CH_NUM+ADC3_CH_NUM];
@@ -626,17 +627,39 @@ void ADC_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 
 }
 
+/* ADC各通道，与GPIO引脚编号，以及霍尔传感器引脚之间的映射关系
+ * ADC1_CHANNEL0 ---> PA0 ---> X+
+ * ADC1_CHANNEL3 ---> PA3 ---> X-
+ * ADC1_CHANNEL6 ---> PA6 ---> Temperature
+ * ADC1_CHANNEL8 ---> PB0 ---> Z+
+ * ADC3_CHANNEL5 ---> PF7 ---> Z-
+ * ADC3_CHANNEL6 ---> PA8 ---> Y+
+ * ADC3_CHANNEL7 ---> PA9 ---> Y-
+ * */
 void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 {
 	BaseType_t ret;
 	uint32_t adcValue[ADC1_CH_NUM+ADC3_CH_NUM];
 	ret = xQueueReceive(Queue_Sensor_Data, adcValue, 1);
 	if(ret == pdPASS)
+	{
+		char record_buff[100];
 		SG_LOG(SEVERITY_INFO, "Record Workflow got sensor data");
+		snprintf(record_buff, 100, "X+:%1.3f, X-:%1.3f, Y+:%1.3f, Y-:%1.3f, Z+:%1.3f, Z-:%1.3f",
+				(float) adcValue[0]*3.3/4096,
+			    (float) adcValue[1]*3.3/4096,
+			    (float) adcValue[2]*3.3/4096,
+			    (float) adcValue[3]*3.3/4096,
+			    (float) adcValue[4]*3.3/4096,
+			    (float) adcValue[5]*3.3/4096,
+			    (float) adcValue[6]*3.3/4096);
+		SG_LOG(SEVERITY_INFO, record_buff);
+	}
 	else
 		SG_LOG(SEVERITY_ERROR, "Record Workflow didn't got sensor data");
 
-	printf("%1.2f\t%1.2f\t%1.2f\t%1.2f\t%1.2f\t%1.2f\t%1.2f\r\n",
+#if DEBUG_MODE
+	printf("%1.2f\t%1.2f\t%1.2f\t%1.2f\t%1.2f\t%1.2f\t%1.2f",
 			(float)adcValue[0] * (3.3/4096),
 			(float)adcValue[1] * (3.3/4096),
 			(float)adcValue[2] * (3.3/4096),
@@ -644,7 +667,9 @@ void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 			(float)adcValue[4] * (3.3/4096),
 			(float)adcValue[5] * (3.3/4096),
 			(float)adcValue[6] * (3.3/4096) );
-	/*数据记录*/
+#endif
+
+	/* 记录完成，状态机切回Main_WorkFlow_Move*/
 	pWorkFlow->MainFlow = Main_WorkFlow_Move;
 }
 
@@ -830,7 +855,8 @@ FRESULT Create_Measure_file(void)
 	/*合成文件名*/
 	/* MEASURE_DIR/202210191450.SMTEST*/
 	uint8_t file_name[50];
-	time_string(file_name, 50);
+	get_time_string(file_name);
+	//time_string(file_name, 50);
 	sprintf(file_name, "%s%s", file_name, ".SGTEST");
 	f_result = mf_open(file_name, FA_CREATE_NEW | FA_WRITE | FA_READ);
 

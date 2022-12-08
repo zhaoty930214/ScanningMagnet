@@ -60,7 +60,7 @@ int main(void)
 {
 	/* USER CODE BEGIN 1 */
 	/* USER CODE END 1 */
-	uint8_t hour, min, sec, ampm;
+	uint8_t hour, min, sec, milisec, ampm;
 
 	HAL_Init();
 	//MX_GPIO_Init();
@@ -85,7 +85,7 @@ int main(void)
 	init_input_io();
 
 	rtc_init();
-    rtc_get_time(&hour, &min, &sec, &ampm);
+    rtc_get_time(&hour, &min, &sec, &milisec, &ampm);
 	printf("Time:%02d:%02d:%02d\r\n", hour, min, sec);
 
 	#ifdef ENCODER_SIMULATOR_MODE

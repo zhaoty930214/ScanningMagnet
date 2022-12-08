@@ -95,17 +95,17 @@ void adc_instance2_dma_init(uint32_t mar)
     __HAL_LINKDMA(&g_adc3_dma_handle, DMA_Handle, g_dma_adc3_handle);         			  /* 把ADC和DMA连接起来 */
 
     /* *************配置ADC通道, 前四个通道是外设ADC1的通道；后三个通道是外设ADC3的通道**************** */
-    adc_ch_conf.Channel = ADC_ADCX_CH5;                                     /* 通道 */
+    adc_ch_conf.Channel = ADC_ADC3_CH5;                                     /* 通道 */
     adc_ch_conf.Rank = 1;                                                   /* 序列 */
     adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
     HAL_ADC_ConfigChannel(&g_adc3_dma_handle, &adc_ch_conf);                /* 通道配置 */
 
-    adc_ch_conf.Channel = ADC_ADCX_CH6;                                     /* 通道 */
+    adc_ch_conf.Channel = ADC_ADC3_CH6;                                     /* 通道 */
     adc_ch_conf.Rank = 2;                                                   /* 序列 */
     adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
     HAL_ADC_ConfigChannel(&g_adc3_dma_handle, &adc_ch_conf);                /* 通道配置 */
 
-    adc_ch_conf.Channel = ADC_ADCX_CH7;                                     /* 通道 */
+    adc_ch_conf.Channel = ADC_ADC3_CH7;                                     /* 通道 */
     adc_ch_conf.Rank = 3;                                                   /* 序列 */
     adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
     HAL_ADC_ConfigChannel(&g_adc3_dma_handle, &adc_ch_conf);                /* 通道配置 */
@@ -198,23 +198,23 @@ void adc_instance1_dma_init(uint32_t mar)
     __HAL_LINKDMA(&g_adc_dma_handle, DMA_Handle, g_dma_adc_handle);         /* 把ADC和DMA连接起来 */
 
     /* *************配置ADC通道, 前四个通道是外设ADC1的通道；后三个通道是外设ADC3的通道**************** */
-    adc_ch_conf.Channel = ADC_ADCX_CH1;                                     /* 通道 */
+    adc_ch_conf.Channel = ADC_ADC1_CH1;                                     /* 通道 */
     adc_ch_conf.Rank = 1;                                                   /* 序列 */
     adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
     HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */
 
-    adc_ch_conf.Channel = ADC_ADCX_CH2;                                     /* 通道 */
+    adc_ch_conf.Channel = ADC_ADC1_CH2;                                     /* 通道 */
     adc_ch_conf.Rank = 2;                                                   /* 序列 */
     adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
     HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */
 
-    adc_ch_conf.Channel = ADC_ADCX_CH3;                                     /* 通道 */
+    adc_ch_conf.Channel = ADC_ADC1_CH3;                                     /* 通道 */
     adc_ch_conf.Rank = 3;                                                   /* 序列 */
     adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
     HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */
 
 
-    adc_ch_conf.Channel = ADC_ADCX_CH4;                                     /* 通道 */
+    adc_ch_conf.Channel = ADC_ADC1_CH4;                                     /* 通道 */
     adc_ch_conf.Rank = 4;                                                   /* 序列 */
     adc_ch_conf.SamplingTime = ADC_SAMPLETIME_480CYCLES;                    /* 采样时间 */
     HAL_ADC_ConfigChannel(&g_adc_dma_handle, &adc_ch_conf);                 /* 通道配置 */

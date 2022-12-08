@@ -48,17 +48,26 @@
 #define ADC_ADCX_CH4_GPIO_CLK_ENABLE()		do{ __HAL_RCC_GPIOB_CLK_ENABLE(); }while(0)
 
 
-
+/* ADC各通道，与GPIO引脚编号，以及霍尔传感器引脚之间的映射关系
+ * ADC1_CHANNEL0 ---> PA0 ---> X+
+ * ADC1_CHANNEL3 ---> PA3 ---> X-
+ * ADC1_CHANNEL6 ---> PA6 ---> Temperature
+ * ADC1_CHANNEL8 ---> PB0 ---> Z+
+ * ADC3_CHANNEL5 ---> PF7 ---> Z-
+ * ADC3_CHANNEL6 ---> PA8 ---> Y+
+ * ADC3_CHANNEL7 ---> PA9 ---> Y-
+ * */
+/* ADC7个通道与GPIO引脚编号之间的映射关系*/
 #define ADC_ADC1                            ADC1
-#define ADC_ADCX_CH1                        ADC_CHANNEL_0
-#define ADC_ADCX_CH2                        ADC_CHANNEL_3
-#define ADC_ADCX_CH3                        ADC_CHANNEL_6
-#define ADC_ADCX_CH4						ADC_CHANNEL_8
+#define ADC_ADC1_CH1                        ADC_CHANNEL_0
+#define ADC_ADC1_CH2                        ADC_CHANNEL_3
+#define ADC_ADC1_CH3                        ADC_CHANNEL_6
+#define ADC_ADC1_CH4						ADC_CHANNEL_8
 
 #define ADC_ADC3							ADC3
-#define ADC_ADCX_CH5						ADC_CHANNEL_5
-#define ADC_ADCX_CH6						ADC_CHANNEL_6
-#define ADC_ADCX_CH7						ADC_CHANNEL_7
+#define ADC_ADC3_CH5						ADC_CHANNEL_5
+#define ADC_ADC3_CH6						ADC_CHANNEL_6
+#define ADC_ADC3_CH7						ADC_CHANNEL_7
 
 
 #define ADC_ADC3_CH5_GPIO_PORT				GPIOF

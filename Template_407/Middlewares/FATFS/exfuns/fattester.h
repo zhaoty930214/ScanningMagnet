@@ -27,7 +27,7 @@
 
 #include "sys.h"
 #include "ff.h"
-
+#include "rtc.h"
 
 /* 定义是否支持文件系统测试功能
  * 1, 支持(开启);
