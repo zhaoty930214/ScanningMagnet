@@ -114,8 +114,8 @@
 /******************************************************************************************/
 
 /* DMA传输状态标志, 0,未完成; 1, 已完成 */
-extern uint8_t g_adc_dma_sta;
-extern uint8_t g_adc3_dma_sta;
+//extern uint8_t g_adc_dma_sta;
+//extern uint8_t g_adc3_dma_sta;
 
 void adc_instance1_dma_init(uint32_t mar);
 void adc_instance2_dma_init(uint32_t mar);

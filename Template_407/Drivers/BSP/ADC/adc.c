@@ -24,13 +24,14 @@
 
 #include "adc.h"
 #include "delay.h"
-
+#include <stdbool.h>
+#include "tsk_functions.h"
 
 DMA_HandleTypeDef g_dma_adc_handle = {0};                                   /* 定义要搬运ADC数据的DMA句柄 */
 ADC_HandleTypeDef g_adc_dma_handle = {0};                                   /* 定义ADC（DMA读取）句柄 */
-uint8_t g_adc_dma_sta = 0;                                                  /* DMA传输状态标志, 0,未完成; 1, 已完成 */
+//uint8_t g_adc_dma_sta = 0;                                                  /* DMA传输状态标志, 0,未完成; 1, 已完成 */
 
-uint8_t g_adc3_dma_sta = 0;
+//uint8_t g_adc3_dma_sta = 0;
 DMA_HandleTypeDef g_dma_adc3_handle = {0};
 ADC_HandleTypeDef g_adc3_dma_handle = {0};                                   /* 定义ADC（DMA读取）句柄 */
 
@@ -114,7 +115,7 @@ void adc_instance2_dma_init(uint32_t mar)
 
 
     /* 配置DMA数据流请求中断优先级 */
-    HAL_NVIC_SetPriority(ADC_ADC3_DMASx_IRQn, 3, 4);
+    HAL_NVIC_SetPriority(ADC_ADC3_DMASx_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(ADC_ADC3_DMASx_IRQn);
 
     HAL_DMA_Start_IT(&g_dma_adc3_handle, (uint32_t)&ADC3->DR, mar, 0);       /* 启动DMA，并开启中断 */
@@ -221,7 +222,7 @@ void adc_instance1_dma_init(uint32_t mar)
     /* *************配置ADC通道, 前四个通道是外设ADC1的通道；后三个通道是外设ADC3的通道**************** */
 
     /* 配置DMA数据流请求中断优先级 */
-    HAL_NVIC_SetPriority(ADC_ADC1_DMASx_IRQn, 3, 3);
+    HAL_NVIC_SetPriority(ADC_ADC1_DMASx_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(ADC_ADC1_DMASx_IRQn);
 
     HAL_DMA_Start_IT(&g_dma_adc_handle, (uint32_t)&ADC1->DR, mar, 0);       /* 启动DMA，并开启中断 */
@@ -273,7 +274,14 @@ void ADC_ADC1_DMASx_IRQHandler(void)
 {
     if (ADC_ADCX_DMASx_IS_TC())
     {
-        g_adc_dma_sta = 1;                          /* 标记DMA传输完成 */
+        //g_adc_dma_sta = 1;                        /* 标记DMA传输完成 */
+    	BaseType_t xHigherPriorityTaskWoken;
+    	xHigherPriorityTaskWoken = pdTRUE;
+    	uint8_t item;
+		xQueueSendFromISR(Queue_ADC1_Sample_Complete,
+						  &item, &xHigherPriorityTaskWoken);
+
+
         ADC_ADCX_DMASx_CLR_TC();                    /* 清除DMA2 数据流4 传输完成中断 */
     }
 }
@@ -288,8 +296,14 @@ void ADC_ADC3_DMASx_IRQHandler(void)
 {
     if (ADC_ADC3_DMASx_IS_TC())
     {
-        g_adc3_dma_sta = 1;                          /* 标记DMA传输完成 */
-        ADC_ADC3_DMASx_CLR_TC();                    /* 清除DMA2 数据流4 传输完成中断 */
+        //g_adc3_dma_sta = 1;                       /* 标记DMA传输完成 */
+    	BaseType_t xHigherPriorityTaskWoken;
+    	xHigherPriorityTaskWoken = pdTRUE;
+    	uint8_t item;
+		xQueueSendFromISR(Queue_ADC3_Sample_Complete,
+						  &item, &xHigherPriorityTaskWoken);
+
+    	ADC_ADC3_DMASx_CLR_TC();                    /* 清除DMA2 数据流4 传输完成中断 */
     }
 }
 

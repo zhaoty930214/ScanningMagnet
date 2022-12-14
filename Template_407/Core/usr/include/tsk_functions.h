@@ -44,7 +44,8 @@ extern  xQueueHandle	Queue_Usart;
 extern	xQueueHandle	Queue_Measure;
 extern	xQueueHandle	Queue_MotorReady;
 extern	xQueueHandle	Queue_Sensor_Data;
-
+extern  xQueueHandle	Queue_ADC1_Sample_Complete;
+extern  xQueueHandle	Queue_ADC3_Sample_Complete;
 /*tsk开头的函数，表示应该在task任务代码段中调用*/
 void tsk_init_queues(void);
 void tsk_Move_Execute(void *param);

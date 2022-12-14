@@ -42,6 +42,8 @@ xQueueHandle	Queue_Usart;
 xQueueHandle	Queue_Measure;
 xQueueHandle	Queue_MotorReady;
 xQueueHandle	Queue_Sensor_Data;
+xQueueHandle	Queue_ADC1_Sample_Complete;
+xQueueHandle	Queue_ADC3_Sample_Complete;
 /*
  * 软件定时器回调
  */
@@ -94,6 +96,18 @@ void tsk_init_queues(void)
 	if(Queue_Sensor_Data == NULL)
 	{
 		printf("Create Queue_Sensor_Data failed\r\n");
+	}
+
+	Queue_ADC1_Sample_Complete = xQueueCreate(SensorData_QUEUE_LENGTH, QUEUE_ITEM_SIZE);
+	if(Queue_ADC1_Sample_Complete == NULL)
+	{
+		printf("Create Queue_ADC1_Sample_Complete failed\r\n");
+	}
+
+	Queue_ADC3_Sample_Complete = xQueueCreate(SensorData_QUEUE_LENGTH, QUEUE_ITEM_SIZE);
+	if(Queue_ADC3_Sample_Complete == NULL)
+	{
+		printf("Create Queue_ADC3_Sample_Complete failed\r\n");
 	}
 
 	printf("Create all Queue success\r\n");
@@ -538,13 +552,16 @@ void Get_ADC_Value(ADC_TypeDef * adcx, int channel_num, uint32_t *pbuff)
 {
 	uint32_t i;
 	float temp;
+	uint8_t item;
+	BaseType_t ret;
 	if(adcx == ADC_ADC1)
 	{
+
 		/* 清除ADC1 传输完成标志位，并启动ADC1 DMA传输. 随后阻塞，直至DMA传输完成
 		 * TO DO: 添加定时器，以免意外卡死主线程*/
-		g_adc_dma_sta = 0;
 		adc_dma_enable(ADC_DMA_BUF_SIZE);
-		while( g_adc_dma_sta != 1);
+		/* 等待ADC-DMA完成，100ms超时*/
+		ret = xQueueReceive(Queue_ADC1_Sample_Complete, &item, 100);
 		memset(pbuff, 0, ADC1_CH_NUM*sizeof(uint32_t));
 
 		/* ADC的扫描模式下，规则通道中的每个通道数据按采样顺序排列在预设的缓存中，这里计
@@ -581,7 +598,9 @@ void Get_ADC_Value(ADC_TypeDef * adcx, int channel_num, uint32_t *pbuff)
 		/* 清除ADC3 传输完成标志位，并启动ADC3 DMA传输. 随后阻塞，直至DMA传输完成
 		 * TO DO: 添加定时器，以免意外卡死主线程*/
 		adc3_dma_enable(ADC3_DMA_BUF_SIZE);
-		while( g_adc3_dma_sta != 1);
+
+		/* 等待ADC-DMA3完成，100ms超时*/
+		ret = xQueueReceive(Queue_ADC3_Sample_Complete, &item, 100);
 		memset(pbuff, 0, ADC3_CH_NUM*sizeof(uint32_t) );
 
 		/* ADC的扫描模式下，规则通道中的每个通道数据按采样顺序排列在预设的缓存中，这里计
