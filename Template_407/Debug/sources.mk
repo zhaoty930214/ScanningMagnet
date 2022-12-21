@@ -24,6 +24,7 @@ C_DEPS :=
 SUBDIRS := \
 Core/Src \
 Core/Startup \
+Core/usr/TestStand \
 Core/usr/src \
 Drivers/BSP/ADC \
 Drivers/BSP/KEY \

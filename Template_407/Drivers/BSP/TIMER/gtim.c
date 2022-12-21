@@ -107,21 +107,20 @@ void GTIM_TIMX_INT_IRQHandler(void)
  */
 void gtim_timx_encoder_chy_init(uint16_t arr, uint16_t psc)
 {
-
-    g_timx_encode_chy_handle.Instance = GTIM_TIMX_ENCODER;                     /* 定时器x */
+    g_timx_encode_chy_handle.Instance = GTIM_TIMX_ENCODER;                 /* 定时器x */
     g_timx_encode_chy_handle.Init.Prescaler = psc;                         /* 定时器分频 */
     g_timx_encode_chy_handle.Init.CounterMode = TIM_COUNTERMODE_UP;        /* 向上计数模式 */
     g_timx_encode_chy_handle.Init.Period = arr;                            /* 自动重装载值 */
     g_timx_encode_chy_handle.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;  /* 时钟分频因子 */
-    g_timx_encoder_chy_handle.EncoderMode = TIM_ENCODERMODE_TI12;       /* TI1,TI2都检测 */
-    g_timx_encoder_chy_handle.IC1Polarity = TIM_ICPOLARITY_RISING;      /* 输入极性，非反向 */
-    g_timx_encoder_chy_handle.IC1Selection = TIM_ICSELECTION_DIRECTTI;  /* 输入通道选择 */
-    g_timx_encoder_chy_handle.IC1Prescaler = TIM_ICPSC_DIV1;            /* 一分频 */
-    g_timx_encoder_chy_handle.IC1Filter = 10;                           /* 滤波器设置 */
-    g_timx_encoder_chy_handle.IC2Polarity = TIM_ICPOLARITY_RISING;      /* 输入极性，非反向 */
-    g_timx_encoder_chy_handle.IC2Selection = TIM_ICSELECTION_DIRECTTI;  /* 输入通道选择 */
-    g_timx_encoder_chy_handle.IC2Prescaler = TIM_ICPSC_DIV1;            /* 一分频 */
-    g_timx_encoder_chy_handle.IC2Filter = 10;                           /* 滤波器设置 */
+    g_timx_encoder_chy_handle.EncoderMode = TIM_ENCODERMODE_TI12;          /* TI1,TI2都检测 */
+    g_timx_encoder_chy_handle.IC1Polarity = TIM_ICPOLARITY_RISING;         /* 输入极性，非反向 */
+    g_timx_encoder_chy_handle.IC1Selection = TIM_ICSELECTION_DIRECTTI;     /* 输入通道选择 */
+    g_timx_encoder_chy_handle.IC1Prescaler = TIM_ICPSC_DIV1;               /* 一分频 */
+    g_timx_encoder_chy_handle.IC1Filter = 10;                              /* 滤波器设置 */
+    g_timx_encoder_chy_handle.IC2Polarity = TIM_ICPOLARITY_RISING;         /* 输入极性，非反向 */
+    g_timx_encoder_chy_handle.IC2Selection = TIM_ICSELECTION_DIRECTTI;     /* 输入通道选择 */
+    g_timx_encoder_chy_handle.IC2Prescaler = TIM_ICPSC_DIV1;               /* 一分频 */
+    g_timx_encoder_chy_handle.IC2Filter = 10;                              /* 滤波器设置 */
     HAL_TIM_Encoder_Init(&g_timx_encode_chy_handle, &g_timx_encoder_chy_handle);
 
     HAL_TIM_Encoder_Start(&g_timx_encode_chy_handle,GTIM_TIMX_ENCODER_CH1);

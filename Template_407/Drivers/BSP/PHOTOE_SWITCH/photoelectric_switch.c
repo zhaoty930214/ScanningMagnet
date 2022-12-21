@@ -109,7 +109,7 @@ void init_input_io(void)
     HAL_NVIC_EnableIRQ(TEMPER_FLOW_IRQn);                       /* 使能中断线3 */
 
     HAL_NVIC_SetPriority(THERMAL_COUPLING_IRQn, 0, 0);               /* 抢占0，子优先级0 */
-    HAL_NVIC_EnableIRQ(THERMAL_COUPLING_IRQn);                       /* 使能中断线9_0 */
+    HAL_NVIC_EnableIRQ(THERMAL_COUPLING_IRQn);                       /* 使能中断线9_5 */
 	/********************光电开关外部中断初始化**************************/
 }
 

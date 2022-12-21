@@ -7,7 +7,10 @@
 #include "rtc.h"
 
 extern MeasureConfig_t g_measureCfg;
-
+uint8_t s_workflow_table[Axis_Count]={
+		//Axis_X			Axis_Y				Axis_Z
+		Sub_WorkFlow_Y,	    Sub_WorkFlow_Z,		Sub_WorkFlow_Finish
+};
 
 /**
  * ADC采样数据的缓存空间
@@ -44,6 +47,23 @@ xQueueHandle	Queue_MotorReady;
 xQueueHandle	Queue_Sensor_Data;
 xQueueHandle	Queue_ADC1_Sample_Complete;
 xQueueHandle	Queue_ADC3_Sample_Complete;
+
+/*初始化用户调节的目标（对应哪个环的目标）*/
+float *MOTOR_X_GO = (float*)(&g_location_pid.SetPoint);
+float *MOTOR_Y_GO = (float*)(&g_location_pid.SetPoint);
+float *MOTOR_Z_GO = (float*)(&g_location_pid.SetPoint);
+
+
+//电机带动滑轨移动1mm，对应的脉冲数
+#define PULSE_PER_MM	50
+
+#define SETPOINT_PULSE_PER_MM	ENCODER_SPR/MPR
+
+int g_pulse_count = 0;
+
+extern  volatile uint16_t g_step_angle;                         /* 设置的步进角度 */
+
+static FIL s_measuringFile;
 /*
  * 软件定时器回调
  */
@@ -113,10 +133,6 @@ void tsk_init_queues(void)
 	printf("Create all Queue success\r\n");
 }
 
-/*初始化用户调节的目标（对应哪个环的目标）*/
-float *MOTOR_X_GO = (float*)(&g_location_pid.SetPoint);
-float *MOTOR_Y_GO = (float*)(&g_location_pid.SetPoint);
-float *MOTOR_Z_GO = (float*)(&g_location_pid.SetPoint);
 
 bool tsk_WaitMoveComplete(uint8_t axis_id)
 {
@@ -254,16 +270,6 @@ void init_measureCfg(float x, float y, float z)
 
 
 
-
-void api_axis_x(void *param)
-{
-
-}
-
-
-
-
-
 /**
  *
  */
@@ -283,15 +289,16 @@ void update_stepper_params(void)
 	g_measureCfg.measure_params.step_cnt_x[Axis_z] = Z_LENGTH/g_measureCfg.measure_config.step_z;
 
 	/*计算三轴各自的步进脉冲数 = 每毫米对应的脉冲数*步进距离毫米单位. */
-	g_measureCfg.measure_params.pulse_cnt_x[Axis_x] = PPM * g_measureCfg.measure_config.step_x;
-	g_measureCfg.measure_params.pulse_cnt_x[Axis_y] = PPM * g_measureCfg.measure_config.step_y;
-	g_measureCfg.measure_params.pulse_cnt_x[Axis_z] = PPM * g_measureCfg.measure_config.step_z;
+	g_measureCfg.measure_params.pulse_per_step_x[Axis_x] = PPM * g_measureCfg.measure_config.step_x;
+	g_measureCfg.measure_params.pulse_per_step_x[Axis_y] = PPM * g_measureCfg.measure_config.step_y;
+	g_measureCfg.measure_params.pulse_per_step_x[Axis_z] = PPM * g_measureCfg.measure_config.step_z;
 
 	//*User_SetPoint += pulse_cnt_x;
-	printf("PPM is %f and | CntPerCycle_x is %d | Pulses_x is %d\r\n", PPM, g_measureCfg.measure_params.step_cnt_x[Axis_x], g_measureCfg.measure_params.pulse_cnt_x[Axis_x]);
-	printf("PPM is %f and | CntPerCycle_y is %d | Pulses_y is %d\r\n", PPM, g_measureCfg.measure_params.step_cnt_x[Axis_y], g_measureCfg.measure_params.pulse_cnt_x[Axis_y]);
-	printf("PPM is %f and | CntPerCycle_z is %d | Pulses_z is %d\r\n", PPM, g_measureCfg.measure_params.step_cnt_x[Axis_z], g_measureCfg.measure_params.pulse_cnt_x[Axis_z]);
-
+#if DEBUG_MODE
+	printf("PPM is %f and | CntPerCycle_x is %d | pulse_per_step_x is %d\r\n", PPM, g_measureCfg.measure_params.step_cnt_x[Axis_x], g_measureCfg.measure_params.pulse_per_step_x[Axis_x]);
+	printf("PPM is %f and | CntPerCycle_y is %d | pulse_per_step_y is %d\r\n", PPM, g_measureCfg.measure_params.step_cnt_x[Axis_y], g_measureCfg.measure_params.pulse_per_step_x[Axis_y]);
+	printf("PPM is %f and | CntPerCycle_z is %d | pulse_per_step_z is %d\r\n", PPM, g_measureCfg.measure_params.step_cnt_x[Axis_z], g_measureCfg.measure_params.pulse_per_step_x[Axis_z]);
+#endif
 	printf("Estimate measuring time is %d seconds \r\n", g_measureCfg.measure_params.step_cnt_x[Axis_x]*
 														 g_measureCfg.measure_params.step_cnt_x[Axis_y]*
 														 g_measureCfg.measure_params.step_cnt_x[Axis_z]/100);
@@ -300,16 +307,16 @@ void update_stepper_params(void)
 
 	if(buf)
 	{
-		snprintf(buf, buf_size, "PPM is %f and | CntPerCycle_x is %d | Pulses_x is %d\r\n",
-					         PPM, g_measureCfg.measure_params.step_cnt_x[Axis_x], g_measureCfg.measure_params.pulse_cnt_x[Axis_x]);
+		snprintf(buf, buf_size, "PPM is %f and | CntPerCycle_x is %d | Pulses_x is %d",
+					         PPM, g_measureCfg.measure_params.step_cnt_x[Axis_x], g_measureCfg.measure_params.pulse_per_step_x[Axis_x]);
 		SG_LOG(SEVERITY_INFO, buf);
 
-		snprintf(buf, buf_size, "PPM is %f and | CntPerCycle_y is %d | Pulses_y is %d\r\n",
-							 PPM, g_measureCfg.measure_params.step_cnt_x[Axis_y], g_measureCfg.measure_params.pulse_cnt_x[Axis_y]);
+		snprintf(buf, buf_size, "PPM is %f and | CntPerCycle_y is %d | Pulses_y is %d",
+							 PPM, g_measureCfg.measure_params.step_cnt_x[Axis_y], g_measureCfg.measure_params.pulse_per_step_x[Axis_y]);
 		SG_LOG(SEVERITY_INFO, buf);
 
-		snprintf(buf, buf_size, "PPM is %f and | CntPerCycle_z is %d | Pulses_z is %d\r\n",
-							 PPM, g_measureCfg.measure_params.step_cnt_x[Axis_z], g_measureCfg.measure_params.pulse_cnt_x[Axis_y]);
+		snprintf(buf, buf_size, "PPM is %f and | CntPerCycle_z is %d | Pulses_z is %d",
+							 PPM, g_measureCfg.measure_params.step_cnt_x[Axis_z], g_measureCfg.measure_params.pulse_per_step_x[Axis_y]);
 		SG_LOG(SEVERITY_INFO, buf);
 
 		free(buf);
@@ -405,6 +412,7 @@ void tsk_Move_Execute(void *param)
 			}
 		#endif
 	}
+	CloseMeasuringFile();
 	SG_LOG(SEVERITY_INFO, "Finish measure tracing task");
 
 }
@@ -438,10 +446,7 @@ void tsk_Move_step(uint8_t axis_id, int set_point)
 
 
 
-uint8_t s_workflow_table[Axis_Count]={
-		//Axis_X			Axis_Y				Axis_Z
-		Sub_WorkFlow_Y,	    Sub_WorkFlow_Z,		Sub_WorkFlow_Finish
-};
+
 
 /**
  *三轴移动函数
@@ -454,10 +459,11 @@ void Move_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 
 	switch(*psub_flow)
 	{
+	/*XYZ三轴的变量，统一写进数组中，使用子工作流ID进行索引*/
 	case 0:
 	case 1:
 	case 2:
-		if(g_measureCfg.measure_params.x_index[*psub_flow] <=
+		if(g_measureCfg.measure_params.x_index[*psub_flow] </*=*/
 		   g_measureCfg.measure_params.step_cnt_x[*psub_flow])
 		{
 			g_measureCfg.measure_params.x_index[*psub_flow]++;
@@ -467,9 +473,16 @@ void Move_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 			if(*psub_flow == Sub_WorkFlow_X)
 				*pmain_flow = Main_WorkFlow_ADC;
 			else if(*psub_flow == Sub_WorkFlow_Y)
+			{
 				*psub_flow = Sub_WorkFlow_X;
+				*pmain_flow = Main_WorkFlow_ADC;
+			}
 			else if(*psub_flow == Sub_WorkFlow_Z)
+			{
 				*psub_flow = Sub_WorkFlow_X;
+				*pmain_flow = Main_WorkFlow_ADC;
+			}
+
 		}
 		else
 		{
@@ -663,8 +676,28 @@ void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 	if(ret == pdPASS)
 	{
 		char record_buff[100];
-		SG_LOG(SEVERITY_INFO, "Record Workflow got sensor data");
-		snprintf(record_buff, 100, "X+:%1.3f, X-:%1.3f, Y+:%1.3f, Y-:%1.3f, Z+:%1.3f, Z-:%1.3f",
+		//SG_LOG(SEVERITY_INFO, "Record Workflow got sensor data");
+
+#if 1
+		/*计算测量点坐标*/
+		/*计算当前的坐标值*/
+		int x = g_measureCfg.measure_params.x_index[Axis_x] * g_measureCfg.measure_config.step_x;
+		int y = g_measureCfg.measure_params.x_index[Axis_y] * g_measureCfg.measure_config.step_y;
+		int z = g_measureCfg.measure_params.x_index[Axis_z] * g_measureCfg.measure_config.step_z;
+
+		if(g_measureCfg.measure_params.dir_x[Axis_x] == CW)
+			x = x - X_LENGTH/2;
+		else
+			x = X_LENGTH/2 - x;
+
+		if(g_measureCfg.measure_params.dir_x[Axis_y] == CW)
+			y = y - Y_LENGTH/2;
+		else
+			y = Y_LENGTH/2 - y;
+#endif
+
+		snprintf(record_buff, 100, "[%+3d, %+3d, %+3d],X+:%1.3f, X-:%1.3f, Y+:%1.3f, Y-:%1.3f, Z+:%1.3f, Z-:%1.3f\r\n",
+				x,y,z,
 				(float) adcValue[0]*3.3/4096,
 			    (float) adcValue[1]*3.3/4096,
 			    (float) adcValue[2]*3.3/4096,
@@ -672,7 +705,12 @@ void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 			    (float) adcValue[4]*3.3/4096,
 			    (float) adcValue[5]*3.3/4096,
 			    (float) adcValue[6]*3.3/4096);
-		SG_LOG(SEVERITY_INFO, record_buff);
+		//SG_LOG(SEVERITY_INFO, record_buff);
+
+
+
+
+		appendMeasuringFile(record_buff);
 	}
 	else
 		SG_LOG(SEVERITY_ERROR, "Record Workflow didn't got sensor data");
@@ -775,7 +813,7 @@ void tsk_USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id)
             	printf("U Disk Total Size:  %uMB\r\n", total >> 10);
             	printf("U Disk Free Size:   %uMB\r\n", free >> 10);
 
-            	Create_Measure_file();
+//            	Create_Measure_file();
 //            	uint8_t buf[50];
 //            	time_string(buf, 50);
 //            	mf_open(buf, FA_CREATE_ALWAYS);
@@ -800,13 +838,9 @@ void tsk_USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id)
 }
 
 
-//电机带动滑轨移动1mm，对应的脉冲数
-#define PULSE_PER_MM	50
-extern  volatile uint16_t g_step_angle;                         /* 设置的步进角度 */
 
-#define SETPOINT_PULSE_PER_MM	ENCODER_SPR/MPR
 
-int g_pulse_count = 0;
+
 void sliede_way_test(uint32_t dis_mm, bool dir_t)
 {
 	/*移动距离= pulse per milimeter*milimeter.*/
@@ -868,40 +902,68 @@ FRESULT Create_Measure_file(void)
 {
 	FRESULT f_result;
 	/*首先创建文件夹,若已存在该文件夹，则创建失败*/
-	f_result = mf_mkdir(MEASURE_DIR);
-
+	f_result = f_mkdir(MEASURE_DIR);
 	printf("Mkdir return %d\r\n", f_result);
-	/*合成文件名*/
-	/* MEASURE_DIR/202210191450.SMTEST*/
-	uint8_t file_name[50];
-	get_time_string(file_name);
-	//time_string(file_name, 50);
-	sprintf(file_name, "%s%s", file_name, ".SGTEST");
-	f_result = mf_open(file_name, FA_CREATE_NEW | FA_WRITE | FA_READ);
 
-	uint8_t buf_test_config[200];
+	/*合成文件名, MEASURE_DIR/202210191450.SMTEST*/
+	uint8_t file_name[LENGTH_FILE_NAME_BUFF];
+	time_string(file_name, LENGTH_FILE_NAME_BUFF);
 
-	snprintf(buf_test_config ,"%s", "File description: This file is auto-generated by Scanning Magnet Test Stand and was just used in-house of Mevion Company\r\n\0");
-	mf_write(buf_test_config, strlen(buf_test_config));
+	/*添加文件名后缀*/
+	sprintf(file_name, "%s%s", file_name, MeasureFileSuffix);
+	f_result = f_open(&s_measuringFile, (const TCHAR*) file_name,
+							FA_CREATE_NEW | FA_WRITE | FA_READ);
 
-	snprintf(buf_test_config, 200,
+
+	uint8_t buf_test_config[LENGTH_LOG_STRING_BUFF];
+
+
+	//snprintf(buf_test_config ,"%s", "File description: This file is auto-generated by Scanning Magnet Test Stand and was just used in-house of Mevion Company\r\n\0");
+	uint32_t bw = 0;
+	f_write(&s_measuringFile, StringFileDescription, strlen(StringFileDescription), &bw);
+
+	/*从文件名中获取时间*/
+	GetFileName(file_name, buf_test_config);
+
+	/*记录测试时间*/
+	snprintf(buf_test_config, LENGTH_LOG_STRING_BUFF,
 			"Test Time: %s\r\n\0", file_name);
-	mf_write(buf_test_config, strlen(buf_test_config));
+	f_write(&s_measuringFile, buf_test_config, strlen(buf_test_config), &bw );
 
 	sprintf(buf_test_config, "Test Config:\r\n \
 			 \t X_Step: %2.2fmm \r\n \
 			 \t Y_Step: %2.2fmm \r\n \
-			 \t Z_Step: %2.2fmm\0",
+			 \t Z_Step: %2.2fmm \r\n\0",
 			 g_measureCfg.measure_config.step_x,
 			 g_measureCfg.measure_config.step_y,
 			 g_measureCfg.measure_config.step_z);
 
-	mf_write(buf_test_config, strlen(buf_test_config));
+	f_write(&s_measuringFile, buf_test_config, strlen(buf_test_config), &bw);
+
 
 
 	//free(buf_test_config);
 
-	mf_close();
+	//f_close(&s_measuringFile);
 	return f_result;
 }
 
+
+FRESULT appendMeasuringFile(char *contents)
+{
+	FRESULT f_result;
+	uint32_t bw = 0;
+
+	f_result = f_write(&s_measuringFile, contents, strlen(contents), &bw);
+
+	return f_result;
+}
+
+
+FRESULT CloseMeasuringFile()
+{
+	FRESULT f_result;
+	f_close(&s_measuringFile);
+
+	return f_result;
+}

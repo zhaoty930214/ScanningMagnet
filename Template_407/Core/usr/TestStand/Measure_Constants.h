@@ -39,11 +39,17 @@
 #define Y_LENGTH	10
 #define Z_LENGTH	70
 
-
+/* LOG函数相关的缓冲长度定义*/
+#define LENGTH_TIME_BUFF		30
+#define LENGTH_FILE_NAME_BUFF	50
+#define LENGTH_LOG_STRING_BUFF	200
 
 /** 文件系统相关的字符串常量 */
 #define MEASURE_DIR 	"0:/MagnetMeasure"
 #define LOG_FILE_PATH   "0:/MagnetMeasure/SGTest.log"
+extern const char StringFileDescription[];
+extern const char MeasureFileSuffix[];
+
 /** 文件系统相关的字符串常量 */
 
 

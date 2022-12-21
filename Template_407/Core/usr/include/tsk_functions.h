@@ -13,12 +13,13 @@
 #include "SGLog.h"
 #include "adc.h"
 
+
 /**
  * 调试配置项
  */
 /**************************************/
 #define ENABLE_UART_DRAW	0		//为1时使能串口打印工作路径轨迹
-#define ACTUAL_MOVE_MOTOR	0		//
+#define ACTUAL_MOVE_MOTOR	0		//为0时使能PID控制环旁路功能
 #define DEBUG_MODE			0		//为0时旁路部分调试用的代码
 
 /**************************************/
@@ -72,4 +73,7 @@ FRESULT Create_Measure_file(void);
 
 /* ADC采样函数*/
 void Get_ADC_Value(ADC_TypeDef * adcx, int channel_num, uint32_t *pbuff);
+
+FRESULT appendMeasuringFile(char *contents);
+FRESULT CloseMeasuringFile();
 #endif

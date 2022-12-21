@@ -59,7 +59,7 @@ typedef struct MeasureParams
 	uint16_t step_cnt_x[Axis_Count];		/*x轴走完一行，需要测量的点数*/
 	//uint16_t step_cnt_y;		/*y轴走完一行，需要测量的点数*/
 	//uint16_t step_cnt_z;		/*z轴走完一行，需要测量的点数*/
-	uint16_t pulse_cnt_x[Axis_Count];		/*x轴每走一次，期望的脉冲输出值(编码器脉冲)*/
+	uint16_t pulse_per_step_x[Axis_Count];		/*x轴每走一次，期望的脉冲输出值(编码器脉冲)*/
 	//uint16_t pulse_cnt_y;		/*y轴每走一次，期望的脉冲输出值(编码器脉冲)*/
 	//uint16_t pulse_cnt_z;		/*z轴每走一次，期望的脉冲输出值(编码器脉冲)*/
 	int	x_index[Axis_Count];				/*当前x轴行程系数*/

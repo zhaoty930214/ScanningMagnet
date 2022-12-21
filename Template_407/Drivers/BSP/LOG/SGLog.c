@@ -79,7 +79,9 @@ void close_log_file(void)
 }
 
 
-//从文件件路径中获取文件名
+/*从文件件路径中获取文件名
+ *
+ */
 void GetFileName(char *path,char *filename)
 {
     char *ptr = NULL;
@@ -144,8 +146,8 @@ void logMessage(
 		s_res = f_write(s_pfile, log_buff, strlen(log_buff), &bw);
 
 	//printf("Writed data len:%d\r\n", bw);
-	if(s_res != FR_OK)
-		printf("F_write FAILED and return value %d\r\n", s_res);
+//	if(s_res != FR_OK)
+//		printf("F_write FAILED and return value %d\r\n", s_res);
 
 	close_log_file();
 

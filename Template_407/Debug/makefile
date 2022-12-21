@@ -35,6 +35,7 @@ RM := rm -rf
 -include Drivers/BSP/KEY/subdir.mk
 -include Drivers/BSP/ADC/subdir.mk
 -include Core/usr/src/subdir.mk
+-include Core/usr/TestStand/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
 -include objects.mk

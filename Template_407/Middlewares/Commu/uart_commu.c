@@ -178,7 +178,6 @@ void config_parse_handler(void *arg, uint8_t index)
 	pconfig_t->step_z = bytes2float(pdata+8);
 	pconfig_t->amplifier_current = bytes2float(pdata+12);
 
-	printf("%s, %d\r\n", __FILE__, __LINE__);
 	printf("config_parse_handler: %f, %f, %f, %f\r\n",
 			pconfig_t->step_x,
 			pconfig_t->step_y,
@@ -297,21 +296,22 @@ bool debug_handle(uint8_t *data, MeasureConfig_t *pConfig)
         			uint8_t size_front, size_behind;
         			size_front  = DEBUG_REV_MAX_LEN - index_start;
         			size_behind = debug_rev_p+1;
-
+#if DEBUG_MODE
         			printf("start index %d\r\n", index_start);
         			printf("end index %d\r\n", index_end);
-
+#endif
         			memcpy(&pConfig->recv_data[0], &debug_rev_data[index_start], size_front);
         			memcpy(&pConfig->recv_data[size_front], &debug_rev_data[0], size_behind);
         			memset(&debug_rev_data[0], 0, DEBUG_REV_MAX_LEN);
         			//gUartHandler[i].pstorage = &pConfig->recv_data[0];
 
-
+#if DEBUG_MODE
         			for(int j=0; j<(size_front+size_behind); j++)
         			{
         				printf("DEBUG %d dest data is 0x%x . oridata is 0x%x\r\n",
         						j, pConfig->recv_data[j], debug_rev_data[j]);
         			}
+#endif
         		}
         		else
         		{

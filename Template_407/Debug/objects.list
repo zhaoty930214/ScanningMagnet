@@ -8,6 +8,7 @@
 "./Core/Src/system_stm32f4xx.o"
 "./Core/Src/usart.o"
 "./Core/Startup/startup_stm32f407igtx.o"
+"./Core/usr/TestStand/Measure_Constants.o"
 "./Core/usr/src/Unused.o"
 "./Core/usr/src/my_tasks.o"
 "./Core/usr/src/tsk_functions.o"

@@ -207,12 +207,11 @@ void UsartCommu_task(void *arg)
 				//∑¢ÀÕ≈‰÷√
 				case 0xa0:
 					printf("Got SendConfig msg\r\n");
-		    		printf("%2.2f\t %2.2f\t %2.2f\t %2.2f\t dirX:%d\r\n",
+		    		printf("%2.2f\t %2.2f\t %2.2f\t %2.2f\t\r\n",
 		    				g_measureCfg.measure_config.step_x,
 							g_measureCfg.measure_config.step_y,
 							g_measureCfg.measure_config.step_z,
-							g_measureCfg.measure_config.amplifier_current,
-							g_measureCfg.measure_params.dir_x
+							g_measureCfg.measure_config.amplifier_current
 							);
 
 		    		update_stepper_params();

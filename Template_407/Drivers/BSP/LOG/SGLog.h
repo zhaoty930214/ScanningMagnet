@@ -5,6 +5,7 @@
 #include "Measure_Constants.h"
 
 void log_init(void);
+void GetFileName(char *path,char *filename);
 
 #define SG_LOG(severity, message) do \
 { \
