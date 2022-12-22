@@ -849,7 +849,7 @@ void sliede_way_test(uint32_t dis_mm, bool dir_t)
 	printf("Ready to move X %dmm @ direction %d\r\n", dis_mm, dir_t);
 	printf("Related pulse count is %d\r\n", g_step_angle);
 
-	//ST1_DIR(dir_t);
+#if ACTUAL_MOVE_MOTOR
 	if(dir_t)
 		*MOTOR_X_GO += SETPOINT_PULSE_PER_MM*dis_mm;
 	else
@@ -857,6 +857,7 @@ void sliede_way_test(uint32_t dis_mm, bool dir_t)
 
 	g_encoder_t.g_run_flag = 1;
 	printf("Direction is %d\r\n", dir_t);
+#endif
 	//stepper_star(STEPPER_MOTOR_1);
 
 	//g_step_angle = 2;

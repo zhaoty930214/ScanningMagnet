@@ -11,7 +11,7 @@
 typedef struct
 {
 	uint8_t channel_id;			//命令号的所属ID
-	void*	pstorage;		//存储数据的结构体
+	void*	pstorage;			//存储数据的结构体
 	uint8_t	pack_size;			//期望的数据包大小
 	void (*data_parse_handler)(void *arg, uint8_t index);
 } Uart_Handler_t;
@@ -42,6 +42,22 @@ typedef struct TimeConfig
 	uint8_t  second;
 } __attribute__((packed)) TimeConfig_t;
 
+
+/*磁铁孔径区标定，结构体定义*/
+#define X_AREA_CALIBRATION_COUNT  34
+#define Y_AREA_CALIBRATION_COUNT  34
+
+typedef struct CalibrationConfig
+{
+    float   VgridWidth;
+    float   HgridHeight;
+    uint8_t VgridCount;
+    uint8_t HgridCount;
+    uint8_t VgridHeights[X_AREA_CALIBRATION_COUNT];
+    uint8_t HgridWidths[Y_AREA_CALIBRATION_COUNT];
+} __attribute__((packed)) CalibrationConfig_t;
+
+
 /*********************串口协议包内容*****************************/
 
 /******************测量过程中的参数，由计算得出**********************/
@@ -57,16 +73,9 @@ enum Axis_ID{
 typedef struct MeasureParams
 {
 	uint16_t step_cnt_x[Axis_Count];		/*x轴走完一行，需要测量的点数*/
-	//uint16_t step_cnt_y;		/*y轴走完一行，需要测量的点数*/
-	//uint16_t step_cnt_z;		/*z轴走完一行，需要测量的点数*/
 	uint16_t pulse_per_step_x[Axis_Count];		/*x轴每走一次，期望的脉冲输出值(编码器脉冲)*/
-	//uint16_t pulse_cnt_y;		/*y轴每走一次，期望的脉冲输出值(编码器脉冲)*/
-	//uint16_t pulse_cnt_z;		/*z轴每走一次，期望的脉冲输出值(编码器脉冲)*/
 	int	x_index[Axis_Count];				/*当前x轴行程系数*/
-	//int y_index;				/*当前y轴行程系数*/
-	//int z_index;				/*当前z轴行程系数*/
 	bool dir_x[Axis_Count];
-	//bool dir_y;
 } __attribute__((packed)) MeasureParams_t;
 /******************测量过程中的参数，由计算得出**********************/
 
@@ -77,6 +86,7 @@ typedef struct MeasureConfig
 	DebugConfig_t			debug_config;
 	MeasureParams_t			measure_params;
 	TimeConfig_t			time_config;
+	CalibrationConfig_t		calibration_config;
 	volatile uint8_t recv_data[DEBUG_REV_MAX_LEN];
 } __attribute__((packed)) MeasureConfig_t;
 

@@ -199,6 +199,7 @@ void debug_structSize();
 void config_parse_handler(void *arg, uint8_t index);
 void debug_parse_handler(void *arg, uint8_t index);
 void time_parse_handler(void *arg, uint8_t index);
+void calibration_parse_handler(void *arg, uint8_t index);
 /***********串口包解析函数***********/
 #endif
 

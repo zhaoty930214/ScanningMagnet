@@ -73,7 +73,7 @@ int main(void)
 
 	//rs232_init(9600);                       /* 初始化RS232 */
 
-	debug_init();
+	//debug_init();
 	stepper_init(0xFFFF-1, 84 - 1);      		/*初始化步进电机驱动和TIM8		   */
 	gtim_timx_encoder_chy_init(0xffff, 0);		/*初始化TIM3(编码器模式)，采样编码器*/
 	btim_timx_int_init(1000-1, 84-1);			/*初始化TIM6普通定时器，20ms周期闭环检测*/

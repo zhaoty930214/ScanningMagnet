@@ -130,15 +130,16 @@ void HeartBeat_task(void* arg)
 }
 
 //COUNT_UART_CHANNELS
-const Uart_Struct_t g_uart_handle_struct[6]=
+const Uart_Struct_t g_uart_handle_struct[UART_COMMUNICATION_CHANNEL_COUNT]=
 {
-	//channel_id	, PACK_SIZE		    , pstorage					  , handler
-	{CMD_SEND_CONFIG, PACK_SIZE_CONFIG  , &g_measureCfg.measure_config, config_parse_handler},
-	{CMD_READ_CONFIG, PACK_SIZE_GENERAL , NULL						  , NULL				},
-	{CMD_SEND_START,  PACK_SIZE_GENERAL , NULL						  , NULL				},
-	{CMD_SEND_STOP,   PACK_SIZE_GENERAL , NULL						  , NULL				},
-	{CMD_SEND_DEBUG,  PACK_SIZE_DEBUG   , &g_measureCfg.debug_config  , debug_parse_handler },
-	{CMD_SEND_TIME,   PACK_SIZE_TIME	, &g_measureCfg.time_config   , time_parse_handler  }
+	//channel_id	, 		PACK_SIZE		  , 	pstorage					 		, handler
+	{CMD_SEND_CONFIG, 		PACK_SIZE_CONFIG  , 	&g_measureCfg.measure_config		, config_parse_handler},
+	{CMD_READ_CONFIG, 		PACK_SIZE_GENERAL , 	NULL						  		, NULL				},
+	{CMD_SEND_START,  		PACK_SIZE_GENERAL , 	NULL						  		, NULL				},
+	{CMD_SEND_STOP,   		PACK_SIZE_GENERAL , 	NULL						  		, NULL				},
+	{CMD_SEND_DEBUG,  		PACK_SIZE_DEBUG   , 	&g_measureCfg.debug_config    		, debug_parse_handler },
+	{CMD_SEND_TIME,   		PACK_SIZE_TIME	  , 	&g_measureCfg.time_config     		, time_parse_handler  },
+	{CMD_SEND_CALIBRATION,  PACK_SIZE_CALIBRATION,	&g_measureCfg.calibration_config	, calibration_parse_handler}
 };
 
 
@@ -179,7 +180,7 @@ void UsartCommu_task(void *arg)
 				switch(cmd_channel)
 				{
 				//开始测量通道
-				case 0xa2:
+				case CMD_SEND_START:
 		    		measure_id = START_MEASURE;
 		    		printf("%2.2f\t %2.2f\t %2.2f\t %2.2f\t \r\n",	\
 		    				    				g_measureCfg.measure_config.step_x,
@@ -191,7 +192,7 @@ void UsartCommu_task(void *arg)
 					break;
 
 				//停止测量通道
-				case 0xa3:
+				case CMD_SEND_STOP:
 					measure_id = STOP_MEASURE;
 					xQueueSend(Queue_Measure, &measure_id, 1);
 					notify_value = NOTIFY_STOP_MEASURE;
@@ -200,12 +201,12 @@ void UsartCommu_task(void *arg)
 					break;
 
 				//读取配置
-				case 0xa1:
+				case CMD_READ_CONFIG:
 					printf("Got ReadConfig msg\r\n");
 					break;
 
 				//发送配置
-				case 0xa0:
+				case CMD_SEND_CONFIG:
 					printf("Got SendConfig msg\r\n");
 		    		printf("%2.2f\t %2.2f\t %2.2f\t %2.2f\t\r\n",
 		    				g_measureCfg.measure_config.step_x,
@@ -217,7 +218,7 @@ void UsartCommu_task(void *arg)
 		    		update_stepper_params();
 					break;
 
-				case 0xa4:
+				case CMD_SEND_DEBUG:
 					measure_id = DEBUG_MOVE;
 		    		printf("%2.2f\t %2.2f\t %2.2f\t %2.2f\t \r\n",	\
 							g_measureCfg.measure_config.step_x,
@@ -282,8 +283,8 @@ void Measure_task(void *arg)
 				break;
 
 			case DEBUG_MOVE:
-				sliede_way_test(g_measureCfg.measure_config.step_x,
-								g_measureCfg.measure_params.dir_x);
+				sliede_way_test(g_measureCfg.debug_config.distance,
+								g_measureCfg.debug_config.direction);
 				break;
 		}
 		vTaskDelay(1000);
