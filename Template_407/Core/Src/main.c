@@ -67,11 +67,11 @@ int main(void)
 	sys_stm32_clock_init(336, 8, 2, 7);
 	delay_init(168);
 	led_init();
-	key_init();                              /* 初始化按键 */
+	key_init();                              	/* 初始化按键 */
 	usart_init(115200);
 
 
-	//rs232_init(9600);                       /* 初始化RS232 */
+	//rs232_init(9600);                       	/* 初始化RS232 */
 
 	//debug_init();
 	stepper_init(0xFFFF-1, 84 - 1);      		/*初始化步进电机驱动和TIM8		   */

@@ -18,12 +18,11 @@
 #include "stepper_motor.h"
 #include "Measure_Constants.h"
 #include "main.h"
-#include "tsk_functions.h"
 #include "adc.h"
 #include "photoelectric_switch.h"
 #include "usbh_core.h"
 #include "usbh_msc.h"
-
+#include "tsk_functions.h"
 
 //#include "SGLog.h"
 

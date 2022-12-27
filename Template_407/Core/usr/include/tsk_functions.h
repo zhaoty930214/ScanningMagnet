@@ -12,7 +12,7 @@
 #include "usbh_msc.h"
 #include "SGLog.h"
 #include "adc.h"
-
+#include "my_tasks.h"
 
 /**
  * 调试配置项
@@ -25,7 +25,7 @@
 /**************************************/
 
 
-
+extern MeasureConfig_t g_measureCfg;
 extern uint16_t g_adc_dma_buf[ADC_DMA_BUF_SIZE];     /* ADC1 DMA BUF */
 extern uint16_t g_adc3_dma_buf[ADC3_DMA_BUF_SIZE];   /* ADC3 DMA BUF */
 
@@ -76,4 +76,9 @@ void Get_ADC_Value(ADC_TypeDef * adcx, int channel_num, uint32_t *pbuff);
 
 FRESULT appendMeasuringFile(char *contents);
 FRESULT CloseMeasuringFile();
+
+/*标定区域尺寸限位*/
+bool tsk_limit_check(int x, int y, int z);
+
+void GetCoordinates(float *x, float *y, float *z);
 #endif

@@ -6,7 +6,7 @@
 #include "adc.h"
 #include "rtc.h"
 
-extern MeasureConfig_t g_measureCfg;
+
 uint8_t s_workflow_table[Axis_Count]={
 		//Axis_X			Axis_Y				Axis_Z
 		Sub_WorkFlow_Y,	    Sub_WorkFlow_Z,		Sub_WorkFlow_Finish
@@ -445,8 +445,65 @@ void tsk_Move_step(uint8_t axis_id, int set_point)
 }
 
 
+/**
+ * @brief       步进电机三轴坐标的限位检查，根据磁铁孔径区的标定信息，避免电机驱动滑轨带
+ * 				动传感器碰撞到扫描磁铁 https://mevion.atlassian.net/browse/YBL-957
+ * 				https://mevion.atlassian.net/wiki/spaces/YBL/pages/67633529
+ * @param       x: 检查的目标位置x坐标
+ * 				y: 检查的目标位置y坐标
+ * 				z: 检查的目标位置z坐标
+ * @return      true:  输入的目标点是安全的
+ * 				false: 移动至输入的目标点，会造碰撞
+ * @Version		作者							日期				修改目的
+ * 1.0			tianyu.zhao@mevion.com		2022-12-26		初版
+ */
+bool tsk_limit_check(int x, int y, int z)
+{
+	bool b_ret = false;
+	int x_index, y_index;
+	int x_decimal, y_decimal;
+	float x_limit, y_limit;
+	/*计算x index, 余数不为0时，向上取整，负数时-1，正数时+1，为0时不变*/
+	x_index = x/g_measureCfg.calibration_config.VgridWidth;
+	x_decimal = x%(int) g_measureCfg.calibration_config.VgridWidth;
+	x_index += (x_decimal ==0 )?0:(x_index>0)?1:(x_index<0)?-1:0/*(x>0)?1:-1*/;
+	x_index += (X_LENGTH/ (int) g_measureCfg.calibration_config.VgridWidth)/2;
+
+	x_index = (x_index == X_LENGTH/g_measureCfg.calibration_config.VgridWidth)?
+			X_LENGTH/g_measureCfg.calibration_config.VgridWidth-1:
+			x_index;
 
 
+	/*计算Y限位*/
+	y_index = y/g_measureCfg.calibration_config.HgridHeight;
+	y_decimal = y%(int)g_measureCfg.calibration_config.HgridHeight;
+	y_index += (y_decimal == 0)?0:(y_index>0)?1:(y_index<0)?-1:0/*(y>0)?1:-1*/;
+	y_index += (Y_LENGTH/(int) g_measureCfg.calibration_config.HgridHeight)/2;
+
+	y_index = (y_index == Y_LENGTH/g_measureCfg.calibration_config.HgridHeight)?
+			Y_LENGTH/g_measureCfg.calibration_config.HgridHeight-1:
+			y_index;
+
+	x_limit = g_measureCfg.calibration_config.VgridHeights[x_index];
+	y_limit = g_measureCfg.calibration_config.HgridWidths[y_index];
+
+#if 0
+	printf("x_index:%d, y_index:%d\r\n", x_index, y_index);
+	printf("limit position is (%f~%f) (%f~%f)@(%d, %d) \r\n", -y_limit/2, y_limit/2,
+													 -x_limit/2, x_limit/2, x, y);
+#endif
+
+	if(((float) x)<(y_limit/2) && ((float) x) > (-y_limit/2))
+	{
+		if(((float) y)<(x_limit/2) && ((float) y) > (-x_limit/2) )
+		{
+			b_ret = true;
+		}
+	}
+
+
+	return b_ret;
+}
 
 /**
  *三轴移动函数
@@ -454,35 +511,111 @@ void tsk_Move_step(uint8_t axis_id, int set_point)
  */
 void Move_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 {
+	static float previous_x= -X_LENGTH/2, previous_y=-Y_LENGTH/2, previous_z=0;
+	float delta_x, delta_y, delta_z;
+
 	MainWorkFlow_List_t *pmain_flow = &pWorkFlow->MainFlow;
 	SubWorkFlow_List_t  *psub_flow  = &pWorkFlow->SubFlow;
 
 	switch(*psub_flow)
 	{
 	/*XYZ三轴的变量，统一写进数组中，使用子工作流ID进行索引*/
-	case 0:
-	case 1:
-	case 2:
+	case Axis_x:
+	case Axis_y:
+	case Axis_z:
 		if(g_measureCfg.measure_params.x_index[*psub_flow] </*=*/
 		   g_measureCfg.measure_params.step_cnt_x[*psub_flow])
 		{
+			/*先检查限位情况*/
+			bool b_movable;
+			float x, y, z;
+
+			/*这里需要添加一个movable有效时才更新的索引号，用于计算PID控制环增量值*/
 			g_measureCfg.measure_params.x_index[*psub_flow]++;
-#if ACTUAL_MOVE_MOTOR
-			tsk_Move_step(*psub_flow, g_measureCfg.measure_params.pulse_cnt_x[*psub_flow]);
-#endif
+
+			/*计算测量点坐标*/
+			/*计算当前的坐标值*/
+			GetCoordinates(&x, &y, &z);
+
+			if(g_measureCfg.measure_params.dir_x[Axis_x] == CW)
+				x = x - X_LENGTH/2;
+			else
+				x = X_LENGTH/2 - x;
+
+			if(g_measureCfg.measure_params.dir_x[Axis_y] == CW)
+				y = y - Y_LENGTH/2;
+			else
+				y = Y_LENGTH/2 - y;
+
+			/*返回值为真，则表示该点有效;否则为无效*/
+			b_movable = tsk_limit_check(x, y, z);
+			if(b_movable)
+			{
+				/*在下个点位有效时，计算其与当前点位坐标的差值*/
+				//delta_x = x - previous_x;
+				delta_y = y - previous_y;
+				delta_z = z - previous_z;
+
+				/*根据差值，判断移动轨迹的行进方向. delta_y不为0时，X绝对值增大，由窄到宽
+				 * X绝对值减小，由宽到窄*/
+				if(delta_y != 0)
+				{
+					delta_x = abs(x) - abs(previous_x);
+					if(delta_x > 0)
+					{
+						SG_LOG(SEVERITY_INFO, "Y Change and from short to long" );
+					}
+					else if(delta_x < 0)
+					{
+						SG_LOG(SEVERITY_INFO, "Y Change and from long to short" );
+					}
+					else if(delta_x == 0)
+					{
+						char buf[30];
+						sprintf(buf, "Y Change from %f to %f", previous_y, y);
+						SG_LOG(SEVERITY_INFO, buf);
+					}
+				}
+				previous_x = x;
+				previous_y = y;
+				previous_z = z;
+			}
+
+
+
+			/*XYZ三轴任意一个移动后，主工作流转为ADC采样*/
 			if(*psub_flow == Sub_WorkFlow_X)
-				*pmain_flow = Main_WorkFlow_ADC;
+			{
+				if(b_movable == true)
+				{
+#if ACTUAL_MOVE_MOTOR
+					tsk_Move_step(*psub_flow, g_measureCfg.measure_params.pulse_cnt_x[*psub_flow]);
+#endif
+					*pmain_flow = Main_WorkFlow_ADC;
+				}
+			}
 			else if(*psub_flow == Sub_WorkFlow_Y)
 			{
 				*psub_flow = Sub_WorkFlow_X;
-				*pmain_flow = Main_WorkFlow_ADC;
+				if(b_movable == true)
+				{
+#if ACTUAL_MOVE_MOTOR
+					tsk_Move_step(*psub_flow, g_measureCfg.measure_params.pulse_cnt_x[*psub_flow]);
+#endif
+					*pmain_flow = Main_WorkFlow_ADC;
+				}
 			}
 			else if(*psub_flow == Sub_WorkFlow_Z)
 			{
+#if ACTUAL_MOVE_MOTOR
+					tsk_Move_step(*psub_flow, g_measureCfg.measure_params.pulse_cnt_x[*psub_flow]);
+#endif
 				*psub_flow = Sub_WorkFlow_X;
-				*pmain_flow = Main_WorkFlow_ADC;
+				if(b_movable == true)
+				{
+					*pmain_flow = Main_WorkFlow_ADC;
+				}
 			}
-
 		}
 		else
 		{
@@ -561,86 +694,6 @@ void Move_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 	}
 }
 
-void Get_ADC_Value(ADC_TypeDef * adcx, int channel_num, uint32_t *pbuff)
-{
-	uint32_t i;
-	float temp;
-	uint8_t item;
-	BaseType_t ret;
-	if(adcx == ADC_ADC1)
-	{
-
-		/* 清除ADC1 传输完成标志位，并启动ADC1 DMA传输. 随后阻塞，直至DMA传输完成
-		 * TO DO: 添加定时器，以免意外卡死主线程*/
-		adc_dma_enable(ADC_DMA_BUF_SIZE);
-		/* 等待ADC-DMA完成，100ms超时*/
-		ret = xQueueReceive(Queue_ADC1_Sample_Complete, &item, 100);
-		memset(pbuff, 0, ADC1_CH_NUM*sizeof(uint32_t));
-
-		/* ADC的扫描模式下，规则通道中的每个通道数据按采样顺序排列在预设的缓存中，这里计
-		 * 算每个通道的累加数字量值，然后除以采样次数做平均计算。*/
-		for (int i=0; i < ADC_DMA_BUF_SIZE; i+= ADC1_CH_NUM)
-		{
-			pbuff[0] += g_adc_dma_buf[i+0];
-			pbuff[1] += g_adc_dma_buf[i+1];
-			pbuff[2] += g_adc_dma_buf[i+2];
-			pbuff[3] += g_adc_dma_buf[i+3];
-		}
-		pbuff[0] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
-		pbuff[1] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
-		pbuff[2] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
-		pbuff[3] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
-
-#if  DEBUG_MODE
-		temp = (float)pbuff[0] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
-		printf("adc1 value is %1.4f\r\n", temp);
-
-		temp = (float)pbuff[1] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
-		printf("adc2 value is %1.4f\r\n", temp);
-
-		temp = (float)pbuff[2] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
-		printf("adc3 value is %1.4f\r\n", temp);
-
-		temp = (float)pbuff[3] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
-		printf("adc4 value is %1.4f\r\n", temp);
-#endif
-
-	}
-	else if(adcx == ADC_ADC3)
-	{
-		/* 清除ADC3 传输完成标志位，并启动ADC3 DMA传输. 随后阻塞，直至DMA传输完成
-		 * TO DO: 添加定时器，以免意外卡死主线程*/
-		adc3_dma_enable(ADC3_DMA_BUF_SIZE);
-
-		/* 等待ADC-DMA3完成，100ms超时*/
-		ret = xQueueReceive(Queue_ADC3_Sample_Complete, &item, 100);
-		memset(pbuff, 0, ADC3_CH_NUM*sizeof(uint32_t) );
-
-		/* ADC的扫描模式下，规则通道中的每个通道数据按采样顺序排列在预设的缓存中，这里计
-		 * 算每个通道的累加数字量值，然后除以采样次数做平均计算。*/
-		for (i = 0; i < ADC3_DMA_BUF_SIZE; i+=ADC3_CH_NUM)              /* 累加 */
-		{
-			pbuff[0] += g_adc3_dma_buf[i];
-			pbuff[1] += g_adc3_dma_buf[i+1];
-			pbuff[2] += g_adc3_dma_buf[i+2];
-		}
-
-		pbuff[0] /= ADC3_DMA_BUF_SIZE/ADC3_CH_NUM;    /* 取平均值 */
-		pbuff[1] /= ADC3_DMA_BUF_SIZE/ADC3_CH_NUM;    /* 取平均值 */
-		pbuff[2] /= ADC3_DMA_BUF_SIZE/ADC3_CH_NUM;    /* 取平均值 */
-
-#if	DEBUG_MODE
-		temp = (float)pbuff[0] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
-		printf("adc5 value is %1.4f\r\n", temp);
-
-		temp = (float)pbuff[1] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
-		printf("adc6 value is %1.4f\r\n", temp);
-
-		temp = (float)pbuff[2] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
-		printf("adc7 value is %1.4f\r\n", temp);
-#endif
-	}
-}
 
 
 void ADC_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
@@ -671,6 +724,7 @@ void ADC_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 {
 	BaseType_t ret;
+	SubWorkFlow_List_t  *psub_flow  = &pWorkFlow->SubFlow;
 	uint32_t adcValue[ADC1_CH_NUM+ADC3_CH_NUM];
 	ret = xQueueReceive(Queue_Sensor_Data, adcValue, 1);
 	if(ret == pdPASS)
@@ -681,9 +735,8 @@ void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 #if 1
 		/*计算测量点坐标*/
 		/*计算当前的坐标值*/
-		int x = g_measureCfg.measure_params.x_index[Axis_x] * g_measureCfg.measure_config.step_x;
-		int y = g_measureCfg.measure_params.x_index[Axis_y] * g_measureCfg.measure_config.step_y;
-		int z = g_measureCfg.measure_params.x_index[Axis_z] * g_measureCfg.measure_config.step_z;
+		float x, y, z;
+		GetCoordinates(&x, &y, &z);
 
 		if(g_measureCfg.measure_params.dir_x[Axis_x] == CW)
 			x = x - X_LENGTH/2;
@@ -694,22 +747,18 @@ void Record_WorkFlow_handler(WorkFlow_Level_t *pWorkFlow)
 			y = y - Y_LENGTH/2;
 		else
 			y = Y_LENGTH/2 - y;
-#endif
 
-		snprintf(record_buff, 100, "[%+3d, %+3d, %+3d],X+:%1.3f, X-:%1.3f, Y+:%1.3f, Y-:%1.3f, Z+:%1.3f, Z-:%1.3f\r\n",
+		snprintf(record_buff, 100, "[%+3.0f, %+3.0f, %+3.0f],X+:%1.3f, X-:%1.3f, Y+:%1.3f, Y-:%1.3f, Z+:%1.3f, Z-:%1.3f\r\n",
 				x,y,z,
 				(float) adcValue[0]*3.3/4096,
 			    (float) adcValue[1]*3.3/4096,
 			    (float) adcValue[2]*3.3/4096,
 			    (float) adcValue[3]*3.3/4096,
 			    (float) adcValue[4]*3.3/4096,
-			    (float) adcValue[5]*3.3/4096,
-			    (float) adcValue[6]*3.3/4096);
-		//SG_LOG(SEVERITY_INFO, record_buff);
-
-
-
-
+			    (float) adcValue[5]*3.3/4096/*,
+			    (float) adcValue[6]*3.3/4096*/);
+		SG_LOG(SEVERITY_INFO, record_buff);
+#endif
 		appendMeasuringFile(record_buff);
 	}
 	else
@@ -967,4 +1016,103 @@ FRESULT CloseMeasuringFile()
 	f_close(&s_measuringFile);
 
 	return f_result;
+}
+
+
+void Get_ADC_Value(ADC_TypeDef * adcx, int channel_num, uint32_t *pbuff)
+{
+	uint32_t i;
+	float temp;
+	uint8_t item;
+	BaseType_t ret;
+	if(adcx == ADC_ADC1)
+	{
+
+		/* 清除ADC1 传输完成标志位，并启动ADC1 DMA传输. 随后阻塞，直至DMA传输完成
+		 * TO DO: 添加定时器，以免意外卡死主线程*/
+		adc_dma_enable(ADC_DMA_BUF_SIZE);
+		/* 等待ADC-DMA完成，100ms超时*/
+		ret = xQueueReceive(Queue_ADC1_Sample_Complete, &item, 100);
+		memset(pbuff, 0, ADC1_CH_NUM*sizeof(uint32_t));
+
+		/* ADC的扫描模式下，规则通道中的每个通道数据按采样顺序排列在预设的缓存中，这里计
+		 * 算每个通道的累加数字量值，然后除以采样次数做平均计算。*/
+		for (int i=0; i < ADC_DMA_BUF_SIZE; i+= ADC1_CH_NUM)
+		{
+			pbuff[0] += g_adc_dma_buf[i+0];
+			pbuff[1] += g_adc_dma_buf[i+1];
+			pbuff[2] += g_adc_dma_buf[i+2];
+			pbuff[3] += g_adc_dma_buf[i+3];
+		}
+		pbuff[0] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
+		pbuff[1] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
+		pbuff[2] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
+		pbuff[3] /= ADC_DMA_BUF_SIZE/ADC1_CH_NUM;
+
+#if  DEBUG_MODE
+		temp = (float)pbuff[0] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc1 value is %1.4f\r\n", temp);
+
+		temp = (float)pbuff[1] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc2 value is %1.4f\r\n", temp);
+
+		temp = (float)pbuff[2] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc3 value is %1.4f\r\n", temp);
+
+		temp = (float)pbuff[3] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc4 value is %1.4f\r\n", temp);
+#endif
+
+	}
+	else if(adcx == ADC_ADC3)
+	{
+		/* 清除ADC3 传输完成标志位，并启动ADC3 DMA传输. 随后阻塞，直至DMA传输完成
+		 * TO DO: 添加定时器，以免意外卡死主线程*/
+		adc3_dma_enable(ADC3_DMA_BUF_SIZE);
+
+		/* 等待ADC-DMA3完成，100ms超时*/
+		ret = xQueueReceive(Queue_ADC3_Sample_Complete, &item, 100);
+		memset(pbuff, 0, ADC3_CH_NUM*sizeof(uint32_t) );
+
+		/* ADC的扫描模式下，规则通道中的每个通道数据按采样顺序排列在预设的缓存中，这里计
+		 * 算每个通道的累加数字量值，然后除以采样次数做平均计算。*/
+		for (i = 0; i < ADC3_DMA_BUF_SIZE; i+=ADC3_CH_NUM)              /* 累加 */
+		{
+			pbuff[0] += g_adc3_dma_buf[i];
+			pbuff[1] += g_adc3_dma_buf[i+1];
+			pbuff[2] += g_adc3_dma_buf[i+2];
+		}
+
+		pbuff[0] /= ADC3_DMA_BUF_SIZE/ADC3_CH_NUM;    /* 取平均值 */
+		pbuff[1] /= ADC3_DMA_BUF_SIZE/ADC3_CH_NUM;    /* 取平均值 */
+		pbuff[2] /= ADC3_DMA_BUF_SIZE/ADC3_CH_NUM;    /* 取平均值 */
+
+#if	DEBUG_MODE
+		temp = (float)pbuff[0] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc5 value is %1.4f\r\n", temp);
+
+		temp = (float)pbuff[1] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc6 value is %1.4f\r\n", temp);
+
+		temp = (float)pbuff[2] * (3.3 / 4096);                  /* 获取计算后的带小数的实际电压值，比如3.1111 */
+		printf("adc7 value is %1.4f\r\n", temp);
+#endif
+	}
+}
+
+
+/**
+ * @brief       获取当前传感器所在位置的点位坐标
+ * @param       x: x坐标存储变量地址
+ * 				y: y坐标存储变量地址
+ * 				z: z坐标存储变量地址
+ * @return      无
+ * @Version		作者							日期				修改目的
+ * 1.0			tianyu.zhao@mevion.com		2022-12-27		初版
+ */
+void GetCoordinates(float *x, float *y, float *z)
+{
+	*x = g_measureCfg.measure_params.x_index[Axis_x] * g_measureCfg.measure_config.step_x;
+	*y = g_measureCfg.measure_params.x_index[Axis_y] * g_measureCfg.measure_config.step_y;
+	*z = g_measureCfg.measure_params.x_index[Axis_z] * g_measureCfg.measure_config.step_z;
 }

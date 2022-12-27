@@ -35,9 +35,9 @@
 
 
 //磁铁孔径的三维尺寸
-#define X_LENGTH	100
-#define Y_LENGTH	10
-#define Z_LENGTH	70
+#define X_LENGTH	140
+#define Y_LENGTH	140
+#define Z_LENGTH	10
 
 /* LOG函数相关的缓冲长度定义*/
 #define LENGTH_TIME_BUFF		30
